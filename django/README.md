@@ -17,7 +17,7 @@ pip install -r requirements.txt
 
 ```python
 CENTRIFUGE_ADDRESS = 'http://localhost:8000'
-CENTRIFUGE_PROJECT_ID = 'development'
+CENTRIFUGE_PROJECT_KEY = 'development'
 CENTRIFUGE_PROJECT_SECRET = 'secret'
 CENTRIFUGE_TIMEOUT = 5
 ```
@@ -45,7 +45,7 @@ Where:
 `--long` - longitude
 `--content` - content of Info Window
 
-Or via `cent`:
+Or via `cent` console client:
 
 ```bash
 echo '{"channel": "map", "data": {"lat": 33, "long": 55, "content": "I am testing Centrifuge"}}'|cent map publish
