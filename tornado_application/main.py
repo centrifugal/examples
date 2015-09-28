@@ -21,10 +21,7 @@ define(
     help="centrifuge address without url scheme", type=str
 )
 define(
-    "project_key", default='', help="project key", type=str
-)
-define(
-    "project_secret", default='', help="project secret key", type=str
+    "secret", default='', help="secret key", type=str
 )
 
 
@@ -47,12 +44,11 @@ def get_auth_data():
 
     user = USER_ID
     now = str(int(time.time()))
-    token = generate_token(options.project_secret, options.project_key, user, now, info=INFO)
+    token = generate_token(options.secret, user, now, info=INFO)
 
     auth_data = {
         'token': token,
         'user': user,
-        'project': options.project_key,
         'timestamp': now,
         'info': INFO
     }
@@ -107,7 +103,7 @@ class CentrifugeAuthHandler(tornado.web.RequestHandler):
                 'channel_extra_info_example': 'you can add additional JSON data when authorizing'
             })
             to_return[channel] = {
-                "sign": generate_channel_sign(options.project_secret, client_id, channel, info=info),
+                "sign": generate_channel_sign(options.secret, client_id, channel, info=info),
                 "info": info
             }
 
@@ -130,12 +126,11 @@ class CentrifugeRefreshHandler(tornado.web.RequestHandler):
 
         user = USER_ID
         now = str(int(time.time()))
-        token = generate_token(options.project_secret, options.project_key, user, now, info=INFO)
+        token = generate_token(options.secret, user, now, info=INFO)
 
         to_return = {
             'token': token,
             'user': user,
-            'project': options.project_key,
             'timestamp': now,
             'info': INFO
         }

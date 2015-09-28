@@ -1,4 +1,4 @@
-<script type="text/javascript" src="https://rawgit.com/centrifugal/centrifuge-js/master/src/centrifuge.js"></script>
+<script type="text/javascript" src="https://rawgit.com/centrifugal/centrifuge-js/single_project/src/centrifuge.js"></script>
 <script type="text/javascript">
     'use strict';
 
@@ -23,7 +23,6 @@
         var centrifuge = new Centrifuge({
             url: '{{protocol}}://{{centrifuge_address}}{{endpoint}}',
             token: '{{auth_data["token"]}}',
-            project: '{{auth_data["project"]}}',
             user: '{{auth_data["user"]}}',
             timestamp: '{{auth_data["timestamp"]}}',
             info: '{% raw auth_data["info"] %}',
