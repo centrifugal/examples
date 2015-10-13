@@ -91,8 +91,13 @@ class CentrifugeAuthHandler(tornado.web.RequestHandler):
 
     def post(self):
 
-        client_id = self.get_argument("client")
-        channels = self.get_arguments("channels[]")
+        try:
+            data = json.loads(self.request.body)
+        except ValueError:
+            raise tornado.web.HTTPError(403)
+
+        client_id = data.get("client", "")
+        channels = data.get("channels", [])
 
         logging.info("{0} wants to subscribe on {1}".format(client_id, ", ".join(channels)))
 

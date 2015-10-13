@@ -1,11 +1,30 @@
 Centrifuge client's application example
 =======================================
 
-First, run Centrifuge, create new project and namespace `public` in it with `publish` permission
-and then run this app with correct Centrifuge address, project id and project secret key:
+First, run Centrifuge with config:
+
+```json
+{
+  "secret": "secret",
+  "namespaces": [
+    {
+      "name": "public",
+      "anonymous": true,
+      "publish": true,
+      "watch": true,
+      "presence": true,
+      "join_leave": true,
+      "history_size": 10,
+      "history_lifetime": 30
+    }
+  ]
+}
+```
+
+and then run this app with correct Centrifuge address and secret key:
 
 ```bash
-python main.py --port=3000 --centrifuge=localhost:8000 --project_key=development --project_secret=secret
+python main.py --port=3000 --centrifuge=localhost:8000 --secret=secret
 ```
 
 Then visit `http://localhost:3000` and select SockJS or pure websocket example.
