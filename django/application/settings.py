@@ -91,7 +91,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 CENTRIFUGE_ADDRESS = 'http://localhost:8000'
-CENTRIFUGE_SECRET = '1ee93d4ac83e4ccf87d2bbd0e447275b'
+CENTRIFUGE_SECRET = 'secret'
 CENTRIFUGE_TIMEOUT = 5
 
 try:

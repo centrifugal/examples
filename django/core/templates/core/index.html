@@ -81,14 +81,13 @@
 
             var centrifuge = new Centrifuge({
                 url: '{{ CENTRIFUGE_SOCKJS_ENDPOINT }}',
-                project: '{{ CENTRIFUGE_PROJECT }}',
                 user: '{{ CENTRIFUGE_USER }}',
                 timestamp: '{{ CENTRIFUGE_TIMESTAMP }}',
                 token: '{{ CENTRIFUGE_TOKEN }}',
                 debug: true
             });
 
-            var channel = 'map';
+            var channel = 'public:map';
 
             centrifuge.on('connect', function(){
 

@@ -15,9 +15,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         client = Client()
-        client.publish('map', {
+        client.publish('public:map', {
             "lat": options.get("lat"),
             "long": options.get("long"),
             "content": options.get("content")
         })
-        client.send()
+        resp = client.send()
+        print resp

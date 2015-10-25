@@ -17,12 +17,25 @@ pip install -r requirements.txt
 
 ```python
 CENTRIFUGE_ADDRESS = 'http://localhost:8000'
-CENTRIFUGE_PROJECT_KEY = 'development'
-CENTRIFUGE_PROJECT_SECRET = 'secret'
+CENTRIFUGE_SECRET = 'secret'
 CENTRIFUGE_TIMEOUT = 5
 ```
 
-4) Make sure that `anonymous access` allowed in project settings in Centrifuge - as all users anonymous in our case.
+4) Use this config in Centrifugo:
+
+```
+{
+  "secret": "secret",
+  "namespaces": [
+    {
+      "name": "public",
+      "anonymous": true
+    }
+  ]
+}
+```
+
+Make sure that `anonymous` access allowed in project settings in Centrifuge - as all Django users anonymous in our case.
 
 5) Run Django server
 
@@ -48,7 +61,7 @@ Where:
 Or via `cent` console client:
 
 ```bash
-echo '{"channel": "map", "data": {"lat": 33, "long": 55, "content": "I am testing Centrifuge"}}'|cent map publish
+echo '{"channel": "public:map", "data": {"lat": 33, "long": 55, "content": "I am testing Centrifuge"}}'|cent map publish
 ```
 
 The contents of my `~/.centrc` file in this case:
@@ -56,7 +69,6 @@ The contents of my `~/.centrc` file in this case:
 ```bash
 [map]
 address = http://localhost:8000/api
-key = development
 secret = secret
 ```
 
