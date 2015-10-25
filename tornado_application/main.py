@@ -90,7 +90,6 @@ class CentrifugeAuthHandler(tornado.web.RequestHandler):
         pass
 
     def post(self):
-
         try:
             data = json.loads(self.request.body)
         except ValueError:
