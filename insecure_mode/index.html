@@ -24,8 +24,6 @@
     <script type="text/javascript">
         $(function() {
             var url = "ws://localhost:8000/connection/websocket";
-            var project = "development";
-
             var log = $('#log');
             var nickname = $('#nickname');
             var input = $('#input');
@@ -60,7 +58,6 @@
 
             var centrifuge = new Centrifuge({
                 "url": url,
-                "project": project,
                 "debug": true,
                 "insecure": true
             });
