@@ -3,10 +3,11 @@
     <head>
         <meta charset="utf-8">
         <title></title>
-        <script type="text/javascript" src="https://cdn.jsdelivr.net/sockjs/1.0/sockjs.min.js"></script>
-        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+        <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js"></script>
+        <script type="text/javascript" src="//cdn.jsdelivr.net/sockjs/1.0/sockjs.min.js"></script>
+        <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
         <style type="text/css">
-            input[type="text"] { width: 300px; }
+            #input {width: 300px;}
             .muted {color: #CCCCCC; font-size: 10px;}
         </style>
         {% set protocol = "http" %}
@@ -14,9 +15,9 @@
         {% include 'code.html' %}
     </head>
     <body>
-        <form action=".">
-            <input type="text">
-            <input type="submit" value="»">
+        <form id="form">
+            <input type="text" id="input" autocomplete="off" />
+            <input type="submit" id="submit" value="»">
         </form>
         <ul id="messages"></ul>
     </body>
