@@ -87,67 +87,48 @@
                 debug: true
             });
 
+            centrifuge.on('error', function(errContext) {
+                console.log(errContext);
+            });
+
             var channel = 'public:map';
 
-            centrifuge.on('connect', function(){
+            var subscription = centrifuge.subscribe(channel, function(message) {
+                var data = message.data;
+                var position = new google.maps.LatLng(data["lat"], data["long"]);
+                var content = '<div class="noscrollbars">' + data["content"] + '</div>';
 
-                var subscription = centrifuge.subscribe(channel, function(message) {
-                    var data = message.data;
-                    var position = new google.maps.LatLng(data["lat"], data["long"]);
-                    var content = '<div class="noscrollbars">' + data["content"] + '</div>';
+                var overlay = new CustomMarker(position, map, 'flash active');
 
-                    /*
-                    var marker = new google.maps.Marker({map: map, position: position, clickable: true});
-                    marker.info = new google.maps.InfoWindow({
-                        content: content,
-                        pixelOffset: new google.maps.Size(0, 15),
-                        maxWidth: parseInt($(window).width()*0.2)
-                    });
-                    google.maps.event.addListener(marker, 'click', function() {
-                        marker.info.open(map, marker);
-                    });
-                    marker.info.open(map, marker);
-                    */
-
-                    var overlay = new CustomMarker(position, map, 'flash active');
-
-                    var iw = new google.maps.InfoWindow({
-                        content: content,
-                        pixelOffset: new google.maps.Size(0,-15),
-                        maxWidth: parseInt($(window).width()*0.2)
-                    });
+                var iw = new google.maps.InfoWindow({
+                    content: content,
+                    pixelOffset: new google.maps.Size(0,-15),
+                    maxWidth: parseInt($(window).width()*0.2)
+                });
+                iw.open(map, overlay);
+                setTimeout(function() {
+                    iw.close();
+                }, 5300);
+                google.maps.event.addListener(overlay, "click", function() {
                     iw.open(map, overlay);
-                    setTimeout(function() {
-                        iw.close();
-                    }, 5300);
-                    google.maps.event.addListener(overlay, "click", function() {
-                        iw.open(map, overlay);
-                    });
-
-                });
-
-                subscription.on('ready', function() {
-                    subscription.presence(function(data) {
-                        console.log(data);
-                    });
-                });
-
-                subscription.on('join', function(message) {
-                    console.log(message);
-                });
-
-                subscription.on('leave', function(message) {
-                    console.log(message);
                 });
 
             });
 
-            centrifuge.on('error', function(error_message) {
-                console.log(error_message);
+            subscription.on('subscribe', function() {
+                console.log("subscribed");
             });
 
-            centrifuge.on('disconnect', function(){
+            subscription.on('error', function(err) {
+                console.log("error subscribing", err);
+            });
 
+            subscription.on('join', function(message) {
+                console.log(message);
+            });
+
+            subscription.on('leave', function(message) {
+                console.log(message);
             });
 
             centrifuge.connect();

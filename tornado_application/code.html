@@ -1,4 +1,4 @@
-<script type="text/javascript" src="http://localhost:2000/centrifuge.js"></script>
+<script type="text/javascript" src="https://rawgit.com/centrifugal/centrifuge-js/master/centrifuge.js"></script>
 <script type="text/javascript">
     // helper functions to work with escaping html.
     var tagsToReplace = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
@@ -20,10 +20,9 @@
             token: '{{auth_data["token"]}}',
             user: '{{auth_data["user"]}}',
             timestamp: '{{auth_data["timestamp"]}}',
-            info: '{% raw auth_data["info"] %}',
-            //transports: ["iframe-htmlfile"],
+            info: '{% raw auth_data["info"] %}',  // note that `raw` tag used here
+            //transports: ["xhr-streaming"],
             debug: true,
-            resubscribe: true,
             refreshEndpoint: "/centrifuge/refresh",
             authEndpoint: "/centrifuge/auth",
             authHeaders: {
@@ -46,6 +45,7 @@
             console.log("got response with error", errCtx);
         });
 
+        // show how many users currently in channel.
         function showPresence(sub) {
             sub.presence().then(function(message) {
                 var count = 0;
@@ -59,15 +59,16 @@
             });
         }
 
-        var sub = centrifuge.subscribe(channel)
-                .on("message", handleMessage)
+        // subscribe on channel and bind various event listeners. Actual
+        // subscription request will be firer after client will connect to
+        // Centrifugo and will be authorized.
+        var sub = centrifuge.subscribe(channel, handleMessage)
                 .on("join", handleJoin)
                 .on("leave", handleLeave)
                 .on("unsubscribe", handleUnsubscribe)
-                .on("resubscribe", handleResubscribe)
-                .on("resubscribe:error", handleError);
+                .on("subscribe", handleSubscribe)
+                .on("error", handleSubscribeError);
 
-        sub.ready().then(handleSubscribe, handleError);
         showPresence(sub);
 
         // Trigger actual connection establishing with Centrifugo server.
@@ -77,21 +78,20 @@
 
         function handleSubscribe(ctx) {
             drawText('Subscribed on channel ' + ctx.channel);
+            if (ctx.isResubscribe) {
+                showPresence(sub);
+            }
         }
 
-        function handleResubscribe(ctx) {
-            drawText('Subscribed on channel ' + ctx.channel);
-            showPresence(sub);
-        }
-
-        function handleError(err) {
+        function handleSubscribeError(err) {
+            drawText('Error subscribing on channel ' + err.channel);
             console.log("subscription failed", err);
         }
 
         function handleMessage(message) {
             console.log("new message received", message);
             var clientID;
-            if (message["info"] !== null){
+            if ("info" in message){
                 clientID = message["info"]["client"];
             } else {
                 clientID = null;
@@ -133,10 +133,10 @@
             input.val('');
         });
 
+        // just an example how to subscribe on the same channel after you
+        // already subscribed on it before and subscription already in subscribed
+        // state. Does not affect chat logic here.
         setTimeout(function(){
-            // just an example how to subscribe on the same channel after you
-            // already subscribed on it before and subscription already in subscribed
-            // state. Does not affect chat logic here.
             var cb = function () {
                 console.log("another subscription message handler");
             };
@@ -150,15 +150,16 @@
             };
 
             sub = centrifuge.subscribe(channel, cb);
-            sub.ready().then(handleAnotherSubscribe, handleAnotherError);
-            sub.on("resubscribe", handleAnotherSubscribe).on("resubscribe:error", handleAnotherError);
+            sub.on("subscribe", handleAnotherSubscribe).on("error", handleAnotherError);
+            // use ready method to call subscribe and subscribe error events
+            // if subscription already subscribed (or subscription already failed).
+            sub.ready(handleAnotherSubscribe, handleAnotherError);
         }, 1000);
 
-
+        // just an example how to subscribe on more channels and use message batching
+        // to send all subscription commands in one request. Does not affect chat
+        // logic here.
         setTimeout(function() {
-            // just an example how to subscribe on more channels and use message batching
-            // to send all subscription commands in one request. Does not affect chat
-            // logic here.
             centrifuge.startBatching();
             var channels = ["test1", "test2", "test3"];
             for (var i in channels) {
