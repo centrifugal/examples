@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Centrifugo WebRTC DataChannel Demo</title>
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="style/demo.css">
+</head>
+<body>
+    <nav class="navbar" role="navigation">
+        <div class="container">
+            <a class="brand" href="https://github.com/centrifugal/centrifugo">
+                <h1>Centrifugo</h1>
+            </a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <header class="col-md-12">
+                <h1>WebRTC DataChannel Chat</h1>
+            </header>
+        </div>
+
+        <div class="row">
+            <section class="col-md-12">
+                <p>This chat application uses WebRTC to create a peer-to-peer, server-less connection between you and the
+                    recipient of your chat messages. This chat uses <a href="https://github.com/centrifugal/centrifugo">Centrifugo</a> as signaling server and <a href="https://github.com/muaz-khan/WebRTC-Experiment/tree/master/DataChannel">DataChannel</a> javascript
+                    library for peer-to-peer communication. This demo inspired by <a href="https://pusher.com/tutorials/webrtc_chat">WebRTC demo</a> of
+                        <a href="https://pusher.com">Pusher.com</a> real-time API service</p>
+
+                <h2>Getting started</h2>
+
+                <ol>
+                    <li>Type a channel name and click <strong>create</strong></li>
+                    <li>Open this page in another tab</li>
+                    <li>Type the same channel name in another tab page and click <strong>join</strong></li>
+                    <li>Wait a moment and start chatting!</li>
+                </ol>
+
+                <div class="demo">
+                    <div class="demo-connect">
+                        <input type="text" class="demo-chat-channel-input form-control" placeholder="Channel name" />
+                        <button class="demo-chat-create btn btn-primary">Create</button>
+                        <button class="demo-chat-join btn btn-warning">Join</button>
+                    </div>
+                    <div class="demo-chat inactive">
+                        <div class="demo-chat-input">
+                            <input name="message" class="demo-chat-message-input form-control"
+                                   placeholder="Message" />
+                            <button class="demo-chat-send btn btn-primary">Send</button>
+                        </div>
+                        <ul class="demo-chat-messages list-group">
+                            <li class="list-group-item" data-remove="true">No chat messages available</li>
+                        </ul>
+                    </div>
+                    <footer>
+                        <a href="https://github.com/centrifugal/centrifugo">Centrifugo</a> powered peer-to-peer WebRTC chat
+                    </footer>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Centrifugo for WebRTC signalling -->
+    <script type="text/javascript" src="https://rawgit.com/centrifugal/centrifuge-js/master/centrifuge.js"></script>
+
+    <!-- DataChannel.js for WebRTC functionality -->
+    <script src="//webrtc-experiment.com/DataChannel.js"></script>
+
+    <!-- Our WebRTC application -->
+    <script src="js/demo.js"></script>
+
+    <!-- Fill channel name -->
+    <script>
+        function getParameterByName(name) {
+            name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+            var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+                    results = regex.exec(location.search);
+            return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+        }
+        var channel = getParameterByName("channel");
+        if (channel) {
+            document.querySelector(".demo-chat-channel-input").value = channel;
+        }
+    </script>
+</body>
+</html>
