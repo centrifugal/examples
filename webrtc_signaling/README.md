@@ -13,23 +13,25 @@ First run Centrifugo with config like this:
 {
   "secret": "secret",
   "publish": true,
-  "anonymous": true
+  "insecure": true
 }
 ```
 
-And run Centrifugo:
-
-```
-./centrifugo --config=config.json --insecure
-```
-
-Note that as usually in demos we use insecure options to simplify learning curve. In production you should
+So javascript client could publish into channels directly and we don't need to
+pass connection parameters from application backend. Note that as usually in demos
+we use insecure options to simplify learning curve. In production you should
 follow Centrifugo best practices.
 
-Now start serving this chat application:
+Start Centrifugo with config above:
+
+```
+./centrifugo --config=config.json
+```
+
+Now start serving this chat application running from inside this folder:
 
 ```
 python -m SimpleHTTPServer 3000
 ```
 
-Go to http://localhost:3000/ and follow instructions.
+Then go to http://localhost:3000/ and follow instructions.
