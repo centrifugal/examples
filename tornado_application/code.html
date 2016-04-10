@@ -168,7 +168,7 @@
                     console.log("Got message from channel " + message.channel);
                 });
             }
-            centrifuge.stopBatching();
+            centrifuge.stopBatching(true);
         }, 3000);
 
     });
