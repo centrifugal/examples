@@ -108,7 +108,7 @@
 
         function handleLeave(message) {
             console.log("subscription leave event fired", message);
-            drawText('Someone left channel ' + message.channel + ' (uid ' + message.data["client"] + ')');
+            drawText('Someone left channel ' + message.channel + ' (uid ' + message.data["client"] + ', user '+ message.data["user"] +')');
         }
 
         function handleUnsubscribe(sub) {
