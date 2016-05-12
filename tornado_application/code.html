@@ -103,7 +103,7 @@
 
         function handleJoin(message) {
             console.log("subscription join event fired", message);
-            drawText('Someone joined channel ' + message.channel + ' (uid ' + message.data["client"] + ')');
+            drawText('Someone joined channel ' + message.channel + ' (uid ' + message.data["client"] + ', user '+ message.data["user"] +')');
         }
 
         function handleLeave(message) {
