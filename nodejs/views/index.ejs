@@ -1,0 +1,54 @@
+<html>
+<head>
+	<title>Centrifugo js</title>
+	<script type="text/javascript" src="js/sockjs.min.js"></script>
+	<script type="text/javascript" src="js/centrifuge.min.js"></script>
+</head>
+<body>
+<div><%= Token %></div>
+<div><%= Timestamp %></div>
+<div><%= User %></div>
+<script>
+	var centrifuge = new Centrifuge({
+	    url: "http://localhost:8001/connection",
+	    user: "42",
+	    timestamp: "<%= Timestamp %>",
+	    token: "<%= Token %>"
+	});
+	
+	var public_callbacks = {
+	    "message": function(dataset) {
+	    	console.log("MSG ");
+	    	console.log('DATASET: '+JSON.stringify(dataset));
+	    },
+	    "join": function(message) {
+	    	console.log('JOIN: '+JSON.stringify(message));
+	    },
+	    "leave": function(message) {
+	    	console.log('LEAVE: '+JSON.stringify(message));
+	    },
+	    "subscribe": function(context) {
+	    	console.log('SUBSCRIBE: '+JSON.stringify(context));
+	    },
+	    "error": function(errContext) {
+	    	console.log('ERROR: '+JSON.stringify(errContext));
+	    },
+	    "unsubscribe": function(context) {
+	    	console.log('UNSUBSCRIBE: '+JSON.stringify(context));
+	    }
+	}
+	
+	var subscription = centrifuge.subscribe("public:test", public_callbacks);
+	
+	centrifuge.on('connect', function(context) {
+		console.log("Connection ("+context.latency+"ms)");
+	});
+	
+	centrifuge.on('disconnect', function(context) {
+		console.log("Disconnection: "+context.reason);
+	});
+	
+	centrifuge.connect();
+</script>
+</body>
+</html>
