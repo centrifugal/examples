@@ -1,5 +1,3 @@
-/* npm install express path jscent */
-
 var express = require("express");
 var Client = require("jscent");
 var path = require('path');
@@ -14,7 +12,7 @@ app.set('view engine', 'ejs');
 
 var timestamp = parseInt(new Date().getTime()/1000).toString();
 var user = "42";
-var Token = new Client.Token("secret_key");
+var Token = new Client.Token("secret");
 Token = Token.clientToken(user, timestamp, "");
 
 app.get('/', function(req, res){ 
@@ -22,4 +20,4 @@ app.get('/', function(req, res){
 });
 
 app.listen(port, host);
-console.log("Server ready at "+host+" "+port)
+console.log("Server ready at "+host+" "+port);
