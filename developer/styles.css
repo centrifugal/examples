@@ -4,6 +4,9 @@ body {
 #credentials input {
     margin-bottom: 5px;
 }
+#hmac-token-block {
+    margin-top: 20px;
+}
 #hmac-token {
     color: darkred;
 }
@@ -14,7 +17,7 @@ body {
     margin-bottom: 15px;
 }
 #log {
-    padding: 10px;
+    padding: 0;
 }
 .help {
     font-size: 0.9em;
