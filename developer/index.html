@@ -1,0 +1,61 @@
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <title>Centrifugo developer page</title>
+        <script type="text/javascript" src="https://code.jquery.com/jquery-1.9.1.js"></script>
+        <script type="text/javascript" src="https://rawgit.com/Caligatio/jsSHA/master/src/sha256.js"></script>
+        <script type="text/javascript" src="https://cdn.jsdelivr.net/sockjs/1.0/sockjs.min.js"></script>
+        <script type="text/javascript" src="https://rawgit.com/centrifugal/centrifuge-js/master/centrifuge.min.js"></script>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">        
+        <link rel="stylesheet" type="text/css" href="/styles.css">
+        <script type="text/javascript" src="/index.js"></script>
+    </head>
+<body>
+    <div class="container">
+        <div class="row">
+                <div class="col">
+                    <div id="header" class="block">
+                        <a target="_blank" href="https://github.com/centrifugal/centrifugo">Centrifugo</a> developer page
+                    </div>
+                    <div id="credentials" class="block">
+                        <input class="form-control" type="text" placeholder="user ID">
+                        <input class="form-control" type="text" placeholder="timestamp">
+                        <input class="form-control" type="text" placeholder="info">
+                        <input class="form-control" type="text" placeholder="secret (NEVER SHOW SECRET TO CLIENT IN REAL APP)">        
+                        <p>Generated SHA-256 HMAC-token: <span id="hmac-token">fill fields above</span></p>
+                    </div>
+                    <div id="connection-controls" class="block">
+                        <button type="button" class="btn btn-primary">Connect</button>
+                        <button type="button" class="btn btn-danger">Disconnect</button>
+                    </div>
+                    <div id="subscription-controls" class="block">
+                        <form class="form-inline">
+                            <div class="form-group">
+                                <input class="form-control" type="text" placeholder="channel to subscribe">
+                                &nbsp;
+                                <button type="button" class="btn btn-primary">Subscribe</button>
+                            </div>
+                        </form>
+                    </div>
+                    <p>Subscribed channels:</p>
+                    <div class="block">
+                        <div>
+                            <span class="badge badge-secondary">public:jsfiddle_chat</span>
+                            <a href="#">Publish</a>
+                            <a href="#">Presence</a>
+                            <a href="#">History</a>
+                            <a href="#">Unsubscribe</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div id="log" class="block">
+                        <div class="message system"><span class="time">14:23:18</span><span class="from">system:</span><span class="text">now connected 1 clients</span></div>
+                        <div class="message system"><span class="time">14:23:18</span><span class="from">system:</span><span class="text">subscribed on channel jsfiddle-chat</span></div>    </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

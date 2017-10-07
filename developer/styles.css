@@ -1,0 +1,43 @@
+body {
+    padding: 10px;
+}
+#credentials input {
+    margin-bottom: 5px;
+}
+#hmac-token {
+    color: darkred;
+}
+#input-wrapper {
+    padding: 10px;
+}
+.block {
+    margin-bottom: 15px;
+}
+#log {
+    padding: 10px;
+}
+.help {
+    font-size: 0.9em;
+    display: block;
+}
+.time {
+    font-size: 0.8em;
+    color: #2d2d2d;
+}
+.from {
+    margin-left: 5px;
+    color: #2d2d2d;
+}
+.text {
+    margin-left: 5px;
+    color: #2d2d2d;
+}
+.system .time {
+    color: #7697D1;
+}
+.system .from {
+    color: #7697D1;
+}
+.system .text{
+    color: #7697D1;
+}
