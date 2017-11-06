@@ -8,7 +8,9 @@ body {
     margin-top: 20px;
 }
 #hmac-token {
-    color: darkred;
+    margin-top: 10px;
+    color: #453D3D;
+    font-size: 12px;
 }
 #input-wrapper {
     padding: 10px;
@@ -35,12 +37,13 @@ body {
     margin-left: 5px;
     color: #2d2d2d;
 }
-.system .time {
+.message .time {
     color: #7697D1;
 }
-.system .from {
+.message .text{
     color: #7697D1;
 }
-.system .text{
-    color: #7697D1;
+.message .event-data {
+    font-size: 10px;
+    margin-bottom: 5px;
 }

@@ -1,124 +1,180 @@
-$(window).load(function(){
-    var url = "http://localhost:8000/connection";
+var centrifuge;
 
-    // note that you MUST NEVER reveal project secret key in production
-    // this is just a demo where we generate connection token on client side
-    var secret = "secret";
+var log;
 
-    var user = "42";
-    var timestamp = parseInt(new Date().getTime()/1000).toString();
+function initConnection() {
 
-    var hmacBody = user + timestamp;
+    if (centrifuge && centrifuge.isConnected()) {
+        centrifuge.disconnect();
+    }
 
+    var defaultEndpoint = "http://localhost:8000/connection";
+    var defaultUserID = "42";
+    var defaultTimestamp = parseInt(new Date().getTime()/1000).toString();
+    var defaultInfo = "";
+
+    var defaultSecret = "secret";
+
+    var url = $("#connection-endpoint").val();
+    if (!url) {
+        url = defaultEndpoint;
+        $("#connection-endpoint").val(defaultEndpoint);
+    }
+
+    var user = $("#connection-user-id").val();
+    if (!user) {
+        user = defaultUserID;
+        $("#connection-user-id").val(defaultUserID)
+    }
+
+    var timestamp = $("#connection-timestamp").val();
+    if (!timestamp) {
+        timestamp = defaultTimestamp;
+        $("#connection-timestamp").val(defaultTimestamp);
+    }
+
+    var info = $("#connection-info").val();
+    if (!info) {
+        info = defaultInfo;
+        $("#connection-info").val(defaultInfo);
+    }
+
+    var secret = $("#secret").val();
+    if (!secret) {
+        secret = defaultSecret;
+        $("#secret").val(defaultSecret);
+    } 
+
+    var hmacBody = user + timestamp + info;
     var shaObj = new jsSHA("SHA-256", "TEXT");
     shaObj.setHMACKey(secret, "TEXT");
     shaObj.update(hmacBody);
     var token = shaObj.getHMAC("HEX");
 
-    var log = $('#log');
-    var nickname = $('#nickname');
-    var input = $('#input');
+    $("#hmac-token").text(token);
 
-    var channel = 'public:jsfiddle-chat';
-
-    var get_current_time = function() {
-        var pad = function (n) {return ("0" + n).slice(-2);};
-        var d = new Date();
-        return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-    }
-
-    var create_message = function(text, from) {
-        var time = get_current_time();
-        var add_class = "";
-        if (typeof(from) == "undefined") {
-            add_class += " system";
-        }
-        var from  = from || "system";
-        var message = $('<div class="message ' + add_class + '"></div>');
-        var time_span = $('<span class="time"></span>');
-        var from_span = $('<span class="from"></span>');
-        var text_span = $('<span class="text"></span>');
-        time_span.text(time);
-        from_span.text(from + ':');
-        text_span.text(text);
-        message.append(time_span).append(from_span).append(text_span);
-        return message;
-    }
-
-    var add_message = function(text, from) {
-        log.prepend(create_message(text, from))
-    }
-
-    var centrifuge = new Centrifuge({
-        // please, read Centrifuge documentation to understand 
-        // what does each option mean here
+    centrifuge = new Centrifuge({
         "url": url,
         "user": user,
         "timestamp": timestamp,
+        "info": info,
         "token": token,
         "debug": true
     });
 
-    var subscription;
-
-    var subscribe = function() {
-        subscription = centrifuge.subscribe(channel, function(message) {
-            if (message.data) {
-                add_message(message.data["input"], message.data["nick"]);
-            }
-        });
-
-        subscription.on('subscribe', function() {
-            add_message("subscribed on channel jsfiddle-chat");
-        });
-        
-        subscription.presence().then(function(message) {
-            var count = 0;
-            for (var key in message.data){
-                count++;
-            }
-            add_message('now connected ' + count + ' clients');
-        }, function(err) {}); 
-        
-        subscription.on('join', function(message) {
-            add_message('someone joined channel');
-        });
-
-        subscription.on('leave', function(message) {
-            add_message('someone left channel');
-        });
-    }
-
-    centrifuge.on('connect', function() {
-        add_message("connected to Centrifugo");
+    centrifuge.on('connect', function(ctx) {
+        addMessage("connected to Centrifugo", ctx);
         subscribe();
-        setInterval(function() {
-            // Heroku closes inactive websocket connection after 55 sec,
-            // so let's send ping message periodically
-            centrifuge.ping();
-        }, 40000);
     });
 
-    centrifuge.on('disconnect', function(){
-        add_message('disconnected from Centrifugo');
-    });
-
-    input.on('keypress', function(e) {
-        if (e.keyCode === 13 && centrifuge.isConnected() === true) {
-            var text = input.val();
-            if (text.length === 0) {
-                return;
-            }
-            var nick = nickname.val();
-            if (nick.length === 0) {nick = "anonymous";}
-            data = {
-                "nick": nick,
-                "input": input.val()
-            }
-            subscription.publish(data);
-            input.val('');
-        }
+    centrifuge.on('disconnect', function(ctx){
+        addMessage('disconnected from Centrifugo', ctx);
     });
 
     centrifuge.connect();
+}
+
+$(window).load(function(){
+    log = $('#log');
+
+    initConnection();
+
+    $("#credentials input").on("keyup", function(){
+        initConnection();
+    });
 });
+
+
+function getCurrentTime() {
+    var pad = function (n) {return ("0" + n).slice(-2);};
+    var d = new Date();
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
+function createMessage(text, data) {
+    var time = getCurrentTime();
+    var add_class = "";
+    var message = $('<div class="message ' + add_class + '"></div>');
+    var time_span = $('<span class="time"></span>');
+    var text_span = $('<span class="text"></span>');
+    var dataBlock = null
+    if (data) {
+        dataBlock = $('<pre class="event-data">'+ prettifyJson(data) +'</pre>')
+    }
+    time_span.text(time);
+    text_span.text(text);
+    message.append(time_span).append(text_span).append(dataBlock);
+    return message;
+}
+
+function addMessage(text, from) {
+    log.prepend(createMessage(text, from))
+}
+
+var subscription;
+
+function subscribe() {
+    var channel = 'public:developer_index';
+
+    subscription = centrifuge.subscribe(channel, function(message) {
+        if (message.data) {
+            addMessage(message.data["input"], message.data["nick"]);
+        }
+    });
+
+    subscription.on('subscribe', function(message) {
+        addMessage("successfully subscribed on channel", message);
+    });
+
+    subscription.on('error', function(message) {
+        addMessage("error subscribing on channel", message);
+    });
+
+    subscription.on('join', function(message) {
+        addMessage('join event received', message);
+    });
+
+    subscription.on('leave', function(message) {
+        addMessage('leave event received', message);
+    });
+
+    subscription.presence().then(function(message) {
+        var count = 0;
+        for (var key in message.data){
+            count++;
+        }
+        addMessage('presence response received: ' + count + ' clients connected', message);
+    }, function(err) {
+        addMessage('presence error', err);
+    });
+
+    subscription.history().then(function(message) {
+        addMessage('history response received', message);
+    }, function(err) {
+        addMessage('presence error', err);
+    });
+
+}
+
+function prettifyJson(json) {
+    return syntaxHighlight(JSON.stringify(json, undefined, 4));
+}
+
+function syntaxHighlight(json) {
+    json = json.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        var cls = 'number';
+        if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+                cls = 'key';
+            } else {
+                cls = 'string';
+            }
+        } else if (/true|false/.test(match)) {
+            cls = 'boolean';
+        } else if (/null/.test(match)) {
+            cls = 'null';
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+    });
+}
