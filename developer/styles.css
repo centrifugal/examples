@@ -1,0 +1,49 @@
+body {
+    padding: 10px;
+}
+#credentials input {
+    margin-bottom: 5px;
+}
+#hmac-token-block {
+    margin-top: 20px;
+}
+#hmac-token {
+    margin-top: 10px;
+    color: #453D3D;
+    font-size: 12px;
+}
+#input-wrapper {
+    padding: 10px;
+}
+.block {
+    margin-bottom: 15px;
+}
+#log {
+    padding: 0;
+}
+.help {
+    font-size: 0.9em;
+    display: block;
+}
+.time {
+    font-size: 0.8em;
+    color: #2d2d2d;
+}
+.from {
+    margin-left: 5px;
+    color: #2d2d2d;
+}
+.text {
+    margin-left: 5px;
+    color: #2d2d2d;
+}
+.message .time {
+    color: #7697D1;
+}
+.message .text{
+    color: #7697D1;
+}
+.message .event-data {
+    font-size: 10px;
+    margin-bottom: 5px;
+}
