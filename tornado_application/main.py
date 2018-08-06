@@ -7,7 +7,7 @@ import logging
 import tornado.ioloop
 import tornado.web
 from tornado.options import options, define
-from cent.core import generate_token, generate_channel_sign
+import jwt
 
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -25,13 +25,14 @@ define(
 )
 
 
-# let it be your application's user ID
+# your application's user ID
 USER_ID = '2694'
 
-INFO = json.dumps({
-    'first_name': 'Alexandr',
+# your application's connection info (optional)
+INFO = {
+    'first_name': 'Alexander',
     'last_name': 'Emelin'
-})
+}
 
 
 class IndexHandler(tornado.web.RequestHandler):
@@ -40,20 +41,9 @@ class IndexHandler(tornado.web.RequestHandler):
         self.render('index.html')
 
 
-def get_auth_data():
-
-    user = USER_ID
-    now = str(int(time.time()))
-    token = generate_token(options.secret, user, now, info=INFO)
-
-    auth_data = {
-        'token': token,
-        'user': user,
-        'timestamp': now,
-        'info': INFO
-    }
-
-    return auth_data
+def get_connection_token():
+    token = jwt.encode({"user": USER_ID, "info": INFO, "exp": int(time.time()) + 10}, key=options.secret)
+    return token.decode()
 
 
 class SockjsHandler(tornado.web.RequestHandler):
@@ -64,7 +54,9 @@ class SockjsHandler(tornado.web.RequestHandler):
         """
         self.render(
             "index_sockjs.html",
-            auth_data=get_auth_data(),
+            auth_data={
+                'token': get_connection_token()
+            },
             centrifuge_address=options.centrifuge
         )
 
@@ -77,12 +69,14 @@ class WebsocketHandler(tornado.web.RequestHandler):
         """
         self.render(
             "index_websocket.html",
-            auth_data=get_auth_data(),
+            auth_data={
+                'token': get_connection_token()
+            },
             centrifuge_address=options.centrifuge
         )
 
 
-class CentrifugeAuthHandler(tornado.web.RequestHandler):
+class CentrifugeSubscribeHandler(tornado.web.RequestHandler):
     """
     Allow all users to subscribe on channels they want.
     """
@@ -95,26 +89,32 @@ class CentrifugeAuthHandler(tornado.web.RequestHandler):
         except ValueError:
             raise tornado.web.HTTPError(403)
 
-        client_id = data.get("client", "")
+        client = data.get("client", "")
         channels = data.get("channels", [])
 
-        logging.info("{0} wants to subscribe on {1}".format(client_id, ", ".join(channels)))
+        logging.info("{0} wants to subscribe on {1}".format(client, ", ".join(channels)))
 
-        to_return = {}
+        channel_data = []
 
         for channel in channels:
-            info = json.dumps({
-                'channel_extra_info_example': 'you can add additional JSON data when authorizing'
-            })
-            to_return[channel] = {
-                "sign": generate_channel_sign(options.secret, client_id, channel, info=info),
-                "info": info
-            }
+                channel_data.append({
+                    "channel": channel,
+                    "token": jwt.encode({
+                        "client": client,
+                        "channel": channel,
+                        "info": {
+                            'extra': 'extra for ' + channel
+                        }, 
+                        "exp": int(time.time()) + 10
+                    }, key=options.secret).decode()
+                })
 
         # but here we allow to join any private channel and return additional
         # JSON info specific for channel
         self.set_header('Content-Type', 'application/json; charset="utf-8"')
-        self.write(json.dumps(to_return))
+        self.write(json.dumps({
+            "channels": channel_data
+        }))
 
 
 class CentrifugeRefreshHandler(tornado.web.RequestHandler):
@@ -127,19 +127,10 @@ class CentrifugeRefreshHandler(tornado.web.RequestHandler):
     def post(self):
         #raise tornado.web.HTTPError(403)
         logging.info("client wants to refresh its connection parameters")
-
-        user = USER_ID
-        now = str(int(time.time()))
-        token = generate_token(options.secret, user, now, info=INFO)
-
-        to_return = {
-            'token': token,
-            'user': user,
-            'timestamp': now,
-            'info': INFO
-        }
         self.set_header('Content-Type', 'application/json; charset="utf-8"')
-        self.write(json.dumps(to_return))
+        self.write(json.dumps({
+            'token': get_connection_token()
+        }))
 
 
 def run():
@@ -149,7 +140,7 @@ def run():
             (r'/', IndexHandler),
             (r'/sockjs', SockjsHandler),
             (r'/ws', WebsocketHandler),
-            (r'/centrifuge/auth', CentrifugeAuthHandler),
+            (r'/centrifuge/subscribe', CentrifugeSubscribeHandler),
             (r'/centrifuge/refresh', CentrifugeRefreshHandler)
         ],
         debug=True
