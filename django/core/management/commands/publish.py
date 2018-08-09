@@ -1,24 +1,35 @@
 from django.core.management.base import BaseCommand, CommandError
 from optparse import make_option
-from adjacent import Client
+import requests
 
 
 class Command(BaseCommand):
 
-    option_list = BaseCommand.option_list + (
-        make_option('--lat', default=0, dest='lat', type='float', help='Latitude'),
-        make_option('--long', default=0, dest='long', type='float', help='Longitude'),
-        make_option('--content', default='', dest='content', help='Content'),
-    )
+    def add_arguments(self, parser):
+        parser.add_argument('--lat',
+            dest='lat',
+            default=0,
+            help='Latitude')
 
-    help = 'Publish new event on map'
+        parser.add_argument('--long',
+            dest='long',
+            default=0,
+            help='Longitude')
+
+        parser.add_argument('--content',
+            dest='content',
+            default='',
+            help='Content')
 
     def handle(self, *args, **options):
-        client = Client()
-        client.publish('public:map', {
-            "lat": options.get("lat"),
-            "long": options.get("long"),
-            "content": options.get("content")
+        requests.post("http://localhost:8000/api", json={
+            "method": "publish",
+            "params": {
+                "channel": "public:map",
+                "data": {
+                    "lat": options.get("lat"),
+                    "long": options.get("long"),
+                    "content": options.get("content")  
+                }
+            }
         })
-        resp = client.send()
-        print resp
