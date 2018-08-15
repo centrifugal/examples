@@ -1,4 +1,4 @@
-<script type="text/javascript" src="https://rawgit.com/centrifugal/centrifuge-js/c2/dist/centrifuge.min.js"></script>
+<script type="text/javascript" src="https://rawgit.com/centrifugal/centrifuge-js/c2/dist/centrifuge.js"></script>
 <script type="text/javascript">
     // helper functions to work with escaping html.
     var tagsToReplace = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
@@ -17,7 +17,7 @@
         // initialize Centrifuge object first
         var centrifuge = new Centrifuge(address, {
             //transports: ["xhr-streaming"],
-            debug: true,
+            //debug: true,
             refreshEndpoint: "/centrifuge/refresh",
             authEndpoint: "/centrifuge/auth",
             authHeaders: {
@@ -67,12 +67,29 @@
 
         showPresence(sub);
 
+        function stress() {
+            setTimeout(function(){
+                // Now we unsubscribe
+                sub.unsubscribe();
+                setTimeout(function(){
+                // Now we unsubscribe
+                    sub.subscribe();
+                    // setTimeout(function() {
+                    //     stress();
+                    // }, 100)
+                }, 100);
+            }, 100);
+        }
+
+        stress();
+
         // Trigger actual connection establishing with Centrifugo server.
         // At this moment actual client work starts - i.e. subscriptions
         // defined start subscribing etc.
         centrifuge.connect();
 
         function handleSubscribe(ctx) {
+            console.log(ctx);
             drawText('Subscribed on channel ' + ctx.channel);
             if (ctx.isResubscribe) {
                 showPresence(sub);
@@ -127,43 +144,43 @@
             input.val('');
         });
 
-        // just an example how to subscribe on the same channel after you
-        // already subscribed on it before and subscription already in subscribed
-        // state. Does not affect chat logic here.
-        setTimeout(function(){
-            var cb = function () {
-                console.log("another subscription message handler");
-            };
+        // // just an example how to subscribe on the same channel after you
+        // // already subscribed on it before and subscription already in subscribed
+        // // state. Does not affect chat logic here.
+        // setTimeout(function(){
+        //     var cb = function () {
+        //         console.log("another subscription message handler");
+        //     };
 
-            var handleAnotherSubscribe = function(sub) {
-                console.log("ANOTHER SUB READY!", sub.channel);
-            };
+        //     var handleAnotherSubscribe = function(sub) {
+        //         console.log("ANOTHER SUB READY!", sub.channel);
+        //     };
 
-            var handleAnotherError = function(err) {
-                console.log("ANOTHER SUB FAILED", err);
-            };
+        //     var handleAnotherError = function(err) {
+        //         console.log("ANOTHER SUB FAILED", err);
+        //     };
 
-            sub = centrifuge.subscribe(channel, cb);
-            sub.on("subscribe", handleAnotherSubscribe).on("error", handleAnotherError);
-            // use ready method to call subscribe and subscribe error events
-            // if subscription already subscribed (or subscription already failed).
-            sub.ready(handleAnotherSubscribe, handleAnotherError);
-        }, 1000);
+        //     sub = centrifuge.subscribe(channel, cb);
+        //     sub.on("subscribe", handleAnotherSubscribe).on("error", handleAnotherError);
+        //     // use ready method to call subscribe and subscribe error events
+        //     // if subscription already subscribed (or subscription already failed).
+        //     sub.ready(handleAnotherSubscribe, handleAnotherError);
+        // }, 1000);
 
-        // just an example how to subscribe on more channels and use message batching
-        // to send all subscription commands in one request. Does not affect chat
-        // logic here.
-        setTimeout(function() {
-            centrifuge.startBatching();
-            var channels = ["test1", "test2", "test3"];
-            for (var i in channels) {
-                var ch = channels[i];
-                centrifuge.subscribe(ch, function(message) {
-                    console.log("Got message from channel " + message.channel);
-                });
-            }
-            centrifuge.stopBatching(true);
-        }, 3000);
+        // // just an example how to subscribe on more channels and use message batching
+        // // to send all subscription commands in one request. Does not affect chat
+        // // logic here.
+        // setTimeout(function() {
+        //     centrifuge.startBatching();
+        //     var channels = ["test1", "test2", "test3"];
+        //     for (var i in channels) {
+        //         var ch = channels[i];
+        //         centrifuge.subscribe(ch, function(message) {
+        //             console.log("Got message from channel " + message.channel);
+        //         });
+        //     }
+        //     centrifuge.stopBatching(true);
+        // }, 3000);
 
     });
 </script>

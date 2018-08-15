@@ -2,79 +2,70 @@
     <head>
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
         <title>Centrifugo developer page</title>
-        <script type="text/javascript" src="https://code.jquery.com/jquery-1.9.1.js"></script>
-        <script type="text/javascript" src="https://rawgit.com/Caligatio/jsSHA/master/src/sha256.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script type="text/javascript" src="https://kjur.github.io/jsrsasign/jsrsasign-latest-all-min.js"></script>
         <script type="text/javascript" src="https://cdn.jsdelivr.net/sockjs/1.0/sockjs.min.js"></script>
-        <script type="text/javascript" src="https://rawgit.com/centrifugal/centrifuge-js/master/centrifuge.min.js"></script>
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">        
+        <script type="text/javascript" src="https://rawgit.com/centrifugal/centrifuge-js/c2/dist/centrifuge.js"></script>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">        
         <link rel="stylesheet" type="text/css" href="/styles.css">
         <script type="text/javascript" src="/index.js"></script>
     </head>
 <body>
     <div class="container">
         <div class="row">
-                <div class="col">
-                    <div id="header" class="block">
-                        <h4>
-                            <a target="_blank" href="https://github.com/centrifugal/centrifugo">Centrifugo</a> developer page
-                        </h4>
-                    </div>
-                    <div id="credentials" class="block">
-                        <div class="form-group">
-                            <label for="connection-endpoint">Connection endpoint address</label>
-                            <input id="connection-endpoint" class="form-control" type="text" placeholder="http://localhost:8000/connection">
-                        </div>
-                        <div class="form-group">
-                            <label for="connection-user-id">User ID</label>
-                            <input id="connection-user-id" class="form-control" type="text" placeholder="42">
-                        </div>
-                        <div class="form-group">
-                            <label for="connection-timestamp">Timestamp</label>
-                            <input id="connection-timestamp" class="form-control" type="text" placeholder="current timestamp">
-                        </div>
-                        <div class="form-group">
-                            <label for="connection-info">Info JSON string (optional)</label>
-                            <input id="connection-info" class="form-control" type="text" placeholder="">
-                        </div>
-                        <div class="form-group">
-                            <label for="secret">Secret (NEVER REVEAL TO CLIENT IN REAL APP)</label>
-                            <input id="secret" class="form-control" type="text" placeholder="secret">
-                        </div>
-                        <div id="hmac-token-block">
-                            <div>Generated SHA-256 HMAC token used to connect:</div>
-                            <div id="hmac-token"></div>
-                        </div>
-                    </div>
-                    <!-- <div id="connection-controls" class="block">
-                        <button type="button" class="btn btn-primary">Connect</button>
-                        <button type="button" class="btn btn-danger">Disconnect</button>
-                    </div>
-                    <div id="subscription-controls" class="block">
-                        <form class="form-inline">
-                            <div class="form-group">
-                                <input class="form-control" type="text" placeholder="channel to subscribe">
-                                &nbsp;
-                                <button type="button" class="btn btn-primary">Subscribe</button>
-                            </div>
-                        </form>
-                    </div> -->
-                    <!-- <p>Subscribed channels:</p>
-                    <div class="block">
-                        <div>
-                            <span class="badge badge-secondary">public:jsfiddle_chat</span>
-                            <a href="#">Publish</a>
-                            <a href="#">Presence</a>
-                            <a href="#">History</a>
-                            <a href="#">Unsubscribe</a>
-                        </div>
-                    </div> -->
+            <div class="col">
+                <div id="header" class="block">
+                    <h4>
+                        <a target="_blank" href="https://github.com/centrifugal/centrifugo">Centrifugo</a> developer page
+                    </h4>
                 </div>
-                <div class="col">
-                    <div id="header" class="block">
-                        <h4>Event log</h4>
+                <div id="credentials" class="block">
+                    <div class="form-group">
+                        <label for="connection-endpoint">Connection endpoint address</label>
+                        <input id="connection-endpoint" class="form-control" type="text" placeholder="http://localhost:8000/connection/sockjs">
                     </div>
-                    <div id="log" class="block"></div>
+                    <div class="form-group">
+                        <label for="connection-user-id">User ID</label>
+                        <input id="connection-user-id" class="form-control" type="text" placeholder="42">
+                    </div>
+                    <div class="form-group">
+                        <label for="secret">Secret (NEVER REVEAL TO CLIENT IN REAL APP)</label>
+                        <input id="secret" class="form-control" type="text" placeholder="secret">
+                    </div>
+                    <div id="hmac-token-block">
+                        <div>Generated JWT token used to connect:</div>
+                        <div id="hmac-token"></div>
+                    </div>
                 </div>
+                <!-- <div id="connection-controls" class="block">
+                    <button type="button" class="btn btn-primary">Connect</button>
+                    <button type="button" class="btn btn-danger">Disconnect</button>
+                </div>
+                <div id="subscription-controls" class="block">
+                    <form class="form-inline">
+                        <div class="form-group">
+                            <input class="form-control" type="text" placeholder="channel to subscribe">
+                            &nbsp;
+                            <button type="button" class="btn btn-primary">Subscribe</button>
+                        </div>
+                    </form>
+                </div> -->
+                <!-- <p>Subscribed channels:</p>
+                <div class="block">
+                    <div>
+                        <span class="badge badge-secondary">public:jsfiddle_chat</span>
+                        <a href="#">Publish</a>
+                        <a href="#">Presence</a>
+                        <a href="#">History</a>
+                        <a href="#">Unsubscribe</a>
+                    </div>
+                </div> -->
+            </div>
+            <div class="col">
+                <div id="header" class="block">
+                    <h4>Event log</h4>
+                </div>
+                <div id="log" class="block"></div>
             </div>
         </div>
     </div>

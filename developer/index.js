@@ -2,16 +2,28 @@ var centrifuge;
 
 var log;
 
+function getJWT(user, secret) {
+    var oHeader = {alg: 'HS256', typ: 'JWT'};
+    // Payload
+    var oPayload = {};
+    var tEnd = KJUR.jws.IntDate.get('now + 1day');
+    oPayload.user = user;
+    oPayload.exp = tEnd;
+    // Sign JWT, password=616161
+    var sHeader = JSON.stringify(oHeader);
+    var sPayload = JSON.stringify(oPayload);
+    var sJWT = KJUR.jws.JWS.sign("HS256", sHeader, sPayload, secret);
+    return sJWT;
+}
+
 function initConnection() {
 
     if (centrifuge && centrifuge.isConnected()) {
         centrifuge.disconnect();
     }
 
-    var defaultEndpoint = "http://localhost:8000/connection";
+    var defaultEndpoint = "http://localhost:8000/connection/sockjs";
     var defaultUserID = "42";
-    var defaultTimestamp = parseInt(new Date().getTime()/1000).toString();
-    var defaultInfo = "";
 
     var defaultSecret = "secret";
 
@@ -27,40 +39,20 @@ function initConnection() {
         $("#connection-user-id").val(defaultUserID)
     }
 
-    var timestamp = $("#connection-timestamp").val();
-    if (!timestamp) {
-        timestamp = defaultTimestamp;
-        $("#connection-timestamp").val(defaultTimestamp);
-    }
-
-    var info = $("#connection-info").val();
-    if (!info) {
-        info = defaultInfo;
-        $("#connection-info").val(defaultInfo);
-    }
-
     var secret = $("#secret").val();
     if (!secret) {
         secret = defaultSecret;
         $("#secret").val(defaultSecret);
     } 
 
-    var hmacBody = user + timestamp + info;
-    var shaObj = new jsSHA("SHA-256", "TEXT");
-    shaObj.setHMACKey(secret, "TEXT");
-    shaObj.update(hmacBody);
-    var token = shaObj.getHMAC("HEX");
+    var token = getJWT(user, secret);
 
     $("#hmac-token").text(token);
 
-    centrifuge = new Centrifuge({
-        "url": url,
-        "user": user,
-        "timestamp": timestamp,
-        "info": info,
-        "token": token,
+    centrifuge = new Centrifuge(url, {
         "debug": true
     });
+    centrifuge.setToken(token);
 
     centrifuge.on('connect', function(ctx) {
         addMessage("connected to Centrifugo", ctx);
@@ -74,7 +66,7 @@ function initConnection() {
     centrifuge.connect();
 }
 
-$(window).load(function(){
+$(function(){
     log = $('#log');
 
     initConnection();
