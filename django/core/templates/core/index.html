@@ -79,17 +79,10 @@
                 return this.latlng_;
             };
 
-            var centrifuge = new Centrifuge({
-                url: '{{ CENTRIFUGE_SOCKJS_ENDPOINT }}',
-                user: '{{ CENTRIFUGE_USER }}',
-                timestamp: '{{ CENTRIFUGE_TIMESTAMP }}',
-                token: '{{ CENTRIFUGE_TOKEN }}',
+            var centrifuge = new Centrifuge('{{ CENTRIFUGE_SOCKJS_ENDPOINT }}', {
                 debug: true
             });
-
-            centrifuge.on('error', function(errContext) {
-                console.log(errContext);
-            });
+            centrifuge.setToken('{{ CENTRIFUGE_TOKEN }}');
 
             var channel = 'public:map';
 

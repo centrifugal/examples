@@ -10,7 +10,8 @@ body {
 #hmac-token {
     margin-top: 10px;
     color: #453D3D;
-    font-size: 12px;
+    font-size: 10px;
+    word-break: break-all;
 }
 #input-wrapper {
     padding: 10px;

@@ -11,6 +11,9 @@
             .muted {color: #CCCCCC; font-size: 10px;}
         </style>
         {% set protocol = "http" %}
+        <script type="text/javascript">
+            var address = '{{protocol}}://{{centrifuge_address}}/connection/sockjs';
+        </script>
         {% include 'code.html' %}
     </head>
     <body>
