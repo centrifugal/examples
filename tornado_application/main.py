@@ -42,7 +42,7 @@ class IndexHandler(tornado.web.RequestHandler):
 
 
 def get_connection_token():
-    token = jwt.encode({"user": USER_ID, "info": INFO, "exp": int(time.time()) + 10}, key=options.secret)
+    token = jwt.encode({"sub": USER_ID, "info": INFO, "exp": int(time.time()) + 10}, key=options.secret)
     return token.decode()
 
 

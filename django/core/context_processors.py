@@ -4,7 +4,7 @@ from django.conf import settings
 
 def get_connection_token(user, info=''):
     user_pk = str(user.pk) if user.is_authenticated else ""
-    return jwt.encode({"user": user_pk}, settings.CENTRIFUGE_SECRET).decode()
+    return jwt.encode({"sub": user_pk}, settings.CENTRIFUGE_SECRET).decode()
 
 
 def main(request):

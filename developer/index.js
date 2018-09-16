@@ -7,7 +7,7 @@ function getJWT(user, secret) {
     // Payload
     var oPayload = {};
     var tEnd = KJUR.jws.IntDate.get('now + 1day');
-    oPayload.user = user;
+    oPayload.sub = user;
     oPayload.exp = tEnd;
     // Sign JWT, password=616161
     var sHeader = JSON.stringify(oHeader);
