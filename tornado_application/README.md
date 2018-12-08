@@ -8,7 +8,7 @@ First, run Centrifuge with config:
   "secret": "secret",
   "namespaces": [
     {
-      "name": "public",
+      "name": "chat",
       "anonymous": true,
       "publish": true,
       "watch": true,
