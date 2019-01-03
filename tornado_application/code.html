@@ -16,8 +16,8 @@
 
         // initialize Centrifuge object first
         var centrifuge = new Centrifuge(address, {
-            //transports: ["xhr-streaming"],
-            //debug: true,
+            // transports: ["xhr-streaming"],
+            // debug: true,
             refreshEndpoint: "/centrifuge/refresh",
             authEndpoint: "/centrifuge/auth",
             authHeaders: {
@@ -36,10 +36,6 @@
         centrifuge.on('disconnect', function(ctx){
             drawText('Disconnected: ' + ctx.reason + (ctx.reconnect?", will try to reconnect":", won't try to reconnect"));
             input.attr("disabled", true);
-        });
-
-        centrifuge.on('error', function(errCtx) {
-            console.log("got response with error", errCtx);
         });
 
         // show how many users currently in channel.
