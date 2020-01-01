@@ -133,6 +133,74 @@ class CentrifugeRefreshHandler(tornado.web.RequestHandler):
         }))
 
 
+
+# Connect proxy example handler.
+class CentrifugoConnectHandler(tornado.web.RequestHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    def post(self):
+        logging.info(self.request.body)
+        self.set_header('Content-Type', 'application/json; charset="utf-8"')
+        data = json.dumps({
+            'result': {
+                'user': '56',
+                'exp': int(time.time()) + 10
+            }
+            # 'error': {
+            #     'code': 1000,
+            #     'message': 'custom error'
+            # },
+            # 'disconnect': {
+            #     'code': 4000,
+            #     'reconnect': False,
+            #     'reason': 'custom disconnect'
+            # }
+        })
+        logging.info(data)
+        self.write(data)
+
+# Refresh proxy example handler.
+class CentrifugoRefreshHandler(tornado.web.RequestHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    def post(self):
+        logging.info(self.request.body)
+        self.set_header('Content-Type', 'application/json; charset="utf-8"')
+        data = json.dumps({
+            'result': {
+                'exp': int(time.time()) + 10
+            }
+        })
+        logging.info(data)
+        self.write(data)
+
+
+# RPC proxy example handler.
+class CentrifugoRPCHandler(tornado.web.RequestHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    def post(self):
+        logging.info(self.request.body)
+        self.set_header('Content-Type', 'application/json; charset="utf-8"')
+        try:
+            rpcRequest = json.loads(self.request.body)
+        except ValueError:
+            raise tornado.web.HTTPError(403)
+        data = json.dumps({
+            'result': {
+                'data': {"answer": 2019}
+            }
+        })
+        logging.info(data)
+        self.write(data)
+
+
 def run():
     options.parse_command_line()
     app = tornado.web.Application(
@@ -141,7 +209,10 @@ def run():
             (r'/sockjs', SockjsHandler),
             (r'/ws', WebsocketHandler),
             (r'/centrifuge/subscribe', CentrifugeSubscribeHandler),
-            (r'/centrifuge/refresh', CentrifugeRefreshHandler)
+            (r'/centrifuge/refresh', CentrifugeRefreshHandler),
+            (r'/centrifugo/connect', CentrifugoConnectHandler),
+            (r'/centrifugo/refresh', CentrifugoRefreshHandler),
+            (r'/centrifugo/rpc', CentrifugoRPCHandler),
         ],
         debug=True
     )

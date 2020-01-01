@@ -70,7 +70,7 @@
 
         function handleSubscribe(ctx) {
             console.log(ctx);
-            drawText('Subscribed on channel ' + ctx.channel);
+            drawText('Subscribed on channel ' + ctx.channel + ', recovered: ' + ctx.recovered);
             if (ctx.isResubscribe) {
                 showPresence(sub);
             }
