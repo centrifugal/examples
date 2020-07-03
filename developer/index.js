@@ -22,10 +22,10 @@ function initConnection() {
         centrifuge.disconnect();
     }
 
-    var defaultEndpoint = "http://localhost:8000/connection/sockjs";
+    var defaultEndpoint = "ws://localhost:8000/connection/websocket";
     var defaultUserID = "42";
-
-    var defaultSecret = "secret";
+    var defaultHmacSecret = "secret";
+    var defaultChannel = "developer_index";
 
     var url = $("#connection-endpoint").val();
     if (!url) {
@@ -41,9 +41,15 @@ function initConnection() {
 
     var secret = $("#secret").val();
     if (!secret) {
-        secret = defaultSecret;
-        $("#secret").val(defaultSecret);
+        secret = defaultHmacSecret;
+        $("#secret").val(defaultHmacSecret);
     } 
+
+    var channel = $("#channel").val();
+    if (!channel) {
+        channel = defaultChannel;
+        $("#channel").val(defaultChannel);
+    }
 
     var token = getJWT(user, secret);
 
@@ -71,8 +77,10 @@ $(function(){
 
     initConnection();
 
-    $("#credentials input").on("keyup", function(){
-        initConnection();
+    $("#credentials input").on("keyup", function(e){
+        if (e.keyCode === 13) {
+            initConnection();
+        }
     });
 });
 
@@ -106,7 +114,7 @@ function addMessage(text, from) {
 var subscription;
 
 function subscribe() {
-    var channel = 'public:developer_index';
+    var channel = $("#channel").val();
 
     subscription = centrifuge.subscribe(channel, function(message) {
         if (message.data) {
@@ -143,7 +151,7 @@ function subscribe() {
     subscription.history().then(function(message) {
         addMessage('history response received', message);
     }, function(err) {
-        addMessage('presence error', err);
+        addMessage('history error', err);
     });
 
 }
