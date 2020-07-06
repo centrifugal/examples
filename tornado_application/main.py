@@ -146,7 +146,7 @@ class CentrifugoConnectHandler(tornado.web.RequestHandler):
         data = json.dumps({
             'result': {
                 'user': '56',
-                'exp': int(time.time()) + 10
+                'expire_at': int(time.time()) + 10
             }
             # 'error': {
             #     'code': 1000,
@@ -172,7 +172,7 @@ class CentrifugoRefreshHandler(tornado.web.RequestHandler):
         self.set_header('Content-Type', 'application/json; charset="utf-8"')
         data = json.dumps({
             'result': {
-                'exp': int(time.time()) + 10
+                'expire_at': int(time.time()) + 10
             }
         })
         logging.info(data)
