@@ -201,6 +201,46 @@ class CentrifugoRPCHandler(tornado.web.RequestHandler):
         self.write(data)
 
 
+# Subscribe proxy example handler.
+class CentrifugoSubscribeHandler(tornado.web.RequestHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    def post(self):
+        logging.info(self.request.body)
+        self.set_header('Content-Type', 'application/json; charset="utf-8"')
+        try:
+            subscribeRequest = json.loads(self.request.body)
+        except ValueError:
+            raise tornado.web.HTTPError(403)
+        data = json.dumps({
+            'result': {}
+        })
+        logging.info(data)
+        self.write(data)
+
+
+# Publish proxy example handler.
+class CentrifugoPublishHandler(tornado.web.RequestHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    def post(self):
+        logging.info(self.request.body)
+        self.set_header('Content-Type', 'application/json; charset="utf-8"')
+        try:
+            publishRequest = json.loads(self.request.body)
+        except ValueError:
+            raise tornado.web.HTTPError(403)
+        data = json.dumps({
+            'result': {}
+        })
+        logging.info(data)
+        self.write(data)
+
+
 def run():
     options.parse_command_line()
     app = tornado.web.Application(
@@ -213,6 +253,8 @@ def run():
             (r'/centrifugo/connect', CentrifugoConnectHandler),
             (r'/centrifugo/refresh', CentrifugoRefreshHandler),
             (r'/centrifugo/rpc', CentrifugoRPCHandler),
+            (r'/centrifugo/subscribe', CentrifugoSubscribeHandler),
+            (r'/centrifugo/publish', CentrifugoPublishHandler),
         ],
         debug=True
     )
