@@ -18,6 +18,8 @@
         var centrifuge = new Centrifuge(address, {
             // transports: ["xhr-streaming"],
             // debug: true,
+            name: "js", // name describes type of client.
+            version: "v0.0.23", // your app-specific version.
             refreshEndpoint: "/centrifuge/refresh",
             authEndpoint: "/centrifuge/auth",
             authHeaders: {
@@ -125,6 +127,10 @@
         function drawText(text) {
             container.prepend($('<li/>').html([(new Date()).toString(), ' ' + text].join(':')));
         }
+
+        // setInterval(function() {
+        //     sub.publish({"input": "1"});
+        // }, 10000);
 
         $('#form').submit(function(event) {
             event.preventDefault();

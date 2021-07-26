@@ -143,11 +143,24 @@ class CentrifugoConnectHandler(tornado.web.RequestHandler):
     def post(self):
         logging.info(self.request.body)
         self.set_header('Content-Type', 'application/json; charset="utf-8"')
+        result = {
+            'user': '56',
+            'expire_at': int(time.time()) + 10,
+        }
+        try:
+            connectRequest = json.loads(self.request.body)
+        except ValueError:
+            raise tornado.web.HTTPError(400)
+
+        if connectRequest['transport'].startswith('uni_'):
+            result['channels'] = ["$chat:index"]
+
+        result['meta'] = {
+            "connected_at": time.time()
+        }
+
         data = json.dumps({
-            'result': {
-                'user': '56',
-                'expire_at': int(time.time()) + 10
-            }
+            'result': result,
             # 'error': {
             #     'code': 1000,
             #     'message': 'custom error'
