@@ -152,8 +152,17 @@ class CentrifugoConnectHandler(tornado.web.RequestHandler):
         except ValueError:
             raise tornado.web.HTTPError(400)
 
+        channels = []
+
         if connectRequest['transport'].startswith('uni_'):
-            result['channels'] = ["$chat:index"]
+            # Not secure, in real app we should check channel permissions here.
+            channels.append("$chat:index")
+
+        for channel in connectRequest.get('channels', []):
+            # Not secure, in real app we should check each channel permission here.
+            channels.append(channel)
+
+        result['channels'] = channels
 
         result['meta'] = {
             "connected_at": time.time()

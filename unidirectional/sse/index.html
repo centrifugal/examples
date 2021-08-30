@@ -1,127 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="utf-8">
-    <title></title>
-    <style type="text/css">
-        input[type="text"] { width: 300px; }
-    </style>
-    <script type="text/javascript">
-        window.addEventListener('load', function() {
-            let eventSource;
-            let reconnect = true;
-            let reconnectTimeout;
-            let numFailures = 0;
+  <meta charset="utf-8">
+  <title></title>
+  <style type="text/css">
+    input[type="text"] {
+      width: 300px;
+    }
+  </style>
+  <script type="text/javascript">
+    window.addEventListener('load', function () {
+      let eventSource;
+      let reconnect = true;
+      let reconnectTimeout;
+      let numFailures = 0;
 
-            function connect() {
-                reconnect = true;
+      function connect() {
+        reconnect = true;
 
-                let url = new URL('http://localhost:8000/connection/uni_sse');
-                url.searchParams.append("connect", JSON.stringify({}));
+        let url = new URL('http://localhost:8000/connection/uni_sse');
+        url.searchParams.append("cf_connect", JSON.stringify({
+          'token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNjI5Mjg1MTk2fQ.Wo8VhETRg7ckExRTjCSGABMJGhpFTyGTqsOljhZjQfY',
+          'subs': { 'a': {}, 'b': {}, 'c': {} }
+        }));
 
-                eventSource = new EventSource(url);
+        eventSource = new EventSource(url);
 
-                eventSource.onopen = function (e) {
-                    console.log(e);
-                };
+        eventSource.onopen = function (e) {
+          console.log(e);
+        };
 
-                eventSource.onerror = function (e) {
-                    numFailures++
-                    console.log(e);
-                    eventSource.close();
-                    if (!reconnect) {
-                        return;
-                    }
-                    drawText("🙏🏾 eventsource: reconnecting");
-                    reconnectTimeout = setTimeout(function () {
-                        connect();
-                    }, Math.min(Math.pow(numFailures, 2) * 1000, 20000));
-                };
-
-                eventSource.onmessage = function (e) {
-                    numFailures = 0; // On first message reset number of failures.
-                    console.log(e);
-                    processPush(e.data);
-                };
-
-                eventSource.addEventListener('ping', function (e) {
-                    console.log(e);
-                    drawText('--> ping');
-                });
-            }
-
-            function disconnect() {
-                drawText('disconnecting');
-                if (eventSource !== null) {
-                    eventSource.close();
-                }
-                if (reconnectTimeout !== null) {
-                    clearTimeout(reconnectTimeout);
-                }
-                reconnect = false;
-            }
-
+        eventSource.onerror = function (e) {
+          numFailures++
+          console.log(e);
+          eventSource.close();
+          if (!reconnect) {
+            return;
+          }
+          drawText("🙏🏾 eventsource: reconnecting");
+          reconnectTimeout = setTimeout(function () {
             connect();
+          }, Math.min(Math.pow(numFailures, 2) * 1000, 20000));
+        };
 
-            function processPush(pushData) {
-                drawText("--> " + pushData);
-                const push = JSON.parse(pushData);
-                const pushType = push.type || 0;
-                switch (pushType) {
-                    // https://github.com/centrifugal/protocol/blob/master/definitions/client.proto.
-                    case 0:
-                        drawText("✨ new data from a channel " + push.channel + ": " + JSON.stringify(push.data));
-                        break;
-                    case 1:
-                        drawText("➕ someone joined channel " + push.channel);
-                        break;
-                    case 2:
-                        drawText("➖ someone left channel " + push.channel);
-                        break;
-                    case 3:
-                        drawText("🔓 unsubscribed from a channel " + push.channel);
-                        break;
-                    case 5:
-                        drawText("🔒 subscribed to a channel " + push.channel);
-                        break;
-                    case 6:
-                        const clientID = push.data.client;
-                        let subscriptions = [];
-                        const subs = push.data.subs;
-                        if (subs) {
-                            for (const m in subs) {
-                                if (subs.hasOwnProperty(m)) {
-                                    subscriptions.push(m);
-                                }
-                            }
-                        }
-                        drawText("🟢 connected with client ID " + clientID + " and subscriptions: " + JSON.stringify(subscriptions));
-                        break;
-                    case 7:
-                        if (push.data.reconnect === false) {
-                            reconnect = false;
-                            eventSource.close();
-                            drawText("🔴 disconnected from a server, won't reconnect");
-                        } else {
-                            drawText("🔴 disconnected from a server, will reconnect");
-                        }
-                        break;
-                    default:
-                        drawText("😟 unsupported push type " + push.type);
-                }
-            }
+        eventSource.onmessage = function (e) {
+          console.log(e);
+          processPush(e.data);
+        };
 
-            const container = document.getElementById('messages');
-
-            function drawText(text) {
-                let e = document.createElement('li');
-                e.innerHTML = [(new Date()).toString(), ' ' + text].join(':');
-                container.insertBefore(e, container.firstChild);
-            }
+        eventSource.addEventListener('ping', function (e) {
+          console.log(e);
+          drawText('--> ping');
         });
-    </script>
+      }
+
+      function disconnect() {
+        drawText('disconnecting');
+        if (eventSource !== null) {
+          eventSource.close();
+        }
+        if (reconnectTimeout !== null) {
+          clearTimeout(reconnectTimeout);
+        }
+        reconnect = false;
+      }
+
+      connect();
+
+      function processPush(pushData) {
+        drawText("--> " + pushData);
+        const push = JSON.parse(pushData);
+        const pushType = push.type || 0;
+        switch (pushType) {
+          // https://github.com/centrifugal/protocol/blob/master/definitions/client.proto.
+          case 0:
+            drawText("✨ new data from a channel " + push.channel + ": " + JSON.stringify(push.data));
+            break;
+          case 1:
+            drawText("➕ someone joined channel " + push.channel);
+            break;
+          case 2:
+            drawText("➖ someone left channel " + push.channel);
+            break;
+          case 3:
+            drawText("🔓 unsubscribed from a channel " + push.channel);
+            break;
+          case 5:
+            drawText("🔒 subscribed to a channel " + push.channel);
+            break;
+          case 6:
+            numFailures = 0; // On connect push reset number of failures.
+            const clientID = push.data.client;
+            let subscriptions = [];
+            const subs = push.data.subs;
+            if (subs) {
+              for (const m in subs) {
+                if (subs.hasOwnProperty(m)) {
+                  subscriptions.push(m);
+                }
+              }
+            }
+            drawText("🟢 connected with client ID " + clientID + " and subscriptions: " + JSON.stringify(subscriptions));
+            break;
+          case 7:
+            if (push.data.reconnect !== true) {
+              reconnect = false;
+              eventSource.close();
+              drawText("🔴 disconnected from a server, won't reconnect");
+            } else {
+              drawText("🔴 disconnected from a server, will reconnect");
+            }
+            break;
+          default:
+            drawText("😟 unsupported push type " + push.type);
+        }
+      }
+
+      const container = document.getElementById('messages');
+
+      function drawText(text) {
+        let e = document.createElement('li');
+        e.innerHTML = [(new Date()).toString(), ' ' + text].join(':');
+        container.insertBefore(e, container.firstChild);
+      }
+    });
+  </script>
 </head>
+
 <body>
-<ul id="messages"></ul>
+  <ul id="messages"></ul>
 </body>
+
 </html>
