@@ -1,4 +1,4 @@
-Centrifugo grpc-proxy example
+Centrifugo v3 grpc-proxy example
 =======================================
 
 Follow next steps:
@@ -10,7 +10,7 @@ bash generate.sh
 ```
 go run main.go
 ```
-3) Run centrifugo (https://github.com/centrifugal/centrifugo)
+3) Run Centrifugo v3 (https://github.com/centrifugal/centrifugo)
 with config like this:  
 For more information see - https://centrifugal.github.io/centrifugo/server/proxy/
 
@@ -34,8 +34,6 @@ For more information see - https://centrifugal.github.io/centrifugo/server/proxy
       "anonymous": true,
       "history_size": 1000,
       "history_ttl": "1000s",
-      "history_lifetime": 3000,
-      "history_recover": true,
       "recover": true
     }
   ]
