@@ -147,7 +147,7 @@ type ConnectRequest struct {
 	Transport string   `protobuf:"bytes,2,opt,name=transport,proto3" json:"transport,omitempty"`
 	Protocol  string   `protobuf:"bytes,3,opt,name=protocol,proto3" json:"protocol,omitempty"`
 	Encoding  string   `protobuf:"bytes,4,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	Data      Raw      `protobuf:"bytes,10,opt,name=data,proto3" json:"data,omitempty"`
+	Data      []byte   `protobuf:"bytes,10,opt,name=data,proto3" json:"data,omitempty"`
 	B64Data   string   `protobuf:"bytes,11,opt,name=b64data,proto3" json:"b64data,omitempty"`
 	Name      string   `protobuf:"bytes,12,opt,name=name,proto3" json:"name,omitempty"`
 	Version   string   `protobuf:"bytes,13,opt,name=version,proto3" json:"version,omitempty"`
@@ -255,9 +255,9 @@ type SubscribeOptions struct {
 	unknownFields protoimpl.UnknownFields
 
 	ExpireAt int64                    `protobuf:"varint,1,opt,name=expire_at,json=expireAt,proto3" json:"expire_at,omitempty"`
-	Info     Raw                      `protobuf:"bytes,2,opt,name=info,proto3" json:"info,omitempty"`
+	Info     []byte                   `protobuf:"bytes,2,opt,name=info,proto3" json:"info,omitempty"`
 	B64Info  string                   `protobuf:"bytes,3,opt,name=b64info,proto3" json:"b64info,omitempty"`
-	Data     Raw                      `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	Data     []byte                   `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
 	B64Data  string                   `protobuf:"bytes,5,opt,name=b64data,proto3" json:"b64data,omitempty"`
 	Override *SubscribeOptionOverride `protobuf:"bytes,6,opt,name=override,proto3" json:"override,omitempty"`
 }
@@ -343,13 +343,13 @@ type ConnectResult struct {
 
 	User     string                       `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	ExpireAt int64                        `protobuf:"varint,2,opt,name=expire_at,json=expireAt,proto3" json:"expire_at,omitempty"`
-	Info     Raw                          `protobuf:"bytes,3,opt,name=info,proto3" json:"info,omitempty"`
+	Info     []byte                       `protobuf:"bytes,3,opt,name=info,proto3" json:"info,omitempty"`
 	B64Info  string                       `protobuf:"bytes,4,opt,name=b64info,proto3" json:"b64info,omitempty"`
-	Data     Raw                          `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	Data     []byte                       `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
 	B64Data  string                       `protobuf:"bytes,6,opt,name=b64data,proto3" json:"b64data,omitempty"`
 	Channels []string                     `protobuf:"bytes,7,rep,name=channels,proto3" json:"channels,omitempty"`
 	Subs     map[string]*SubscribeOptions `protobuf:"bytes,8,rep,name=subs,proto3" json:"subs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Meta     Raw                          `protobuf:"bytes,9,opt,name=meta,proto3" json:"meta,omitempty"`
+	Meta     []byte                       `protobuf:"bytes,9,opt,name=meta,proto3" json:"meta,omitempty"`
 }
 
 func (x *ConnectResult) Reset() {
@@ -519,8 +519,8 @@ type RefreshRequest struct {
 	Transport string `protobuf:"bytes,2,opt,name=transport,proto3" json:"transport,omitempty"`
 	Protocol  string `protobuf:"bytes,3,opt,name=protocol,proto3" json:"protocol,omitempty"`
 	Encoding  string `protobuf:"bytes,4,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	User      string `protobuf:"bytes,10,opt,name=user,proto3" json:"user"`
-	Meta      Raw    `protobuf:"bytes,11,opt,name=meta,proto3" json:"meta,omitempty"`
+	User      string `protobuf:"bytes,10,opt,name=user,proto3" json:"user,omitempty"`
+	Meta      []byte `protobuf:"bytes,11,opt,name=meta,proto3" json:"meta,omitempty"`
 }
 
 func (x *RefreshRequest) Reset() {
@@ -604,7 +604,7 @@ type RefreshResult struct {
 
 	Expired  bool   `protobuf:"varint,1,opt,name=expired,proto3" json:"expired,omitempty"`
 	ExpireAt int64  `protobuf:"varint,2,opt,name=expire_at,json=expireAt,proto3" json:"expire_at,omitempty"`
-	Info     Raw    `protobuf:"bytes,3,opt,name=info,proto3" json:"info,omitempty"`
+	Info     []byte `protobuf:"bytes,3,opt,name=info,proto3" json:"info,omitempty"`
 	B64Info  string `protobuf:"bytes,4,opt,name=b64info,proto3" json:"b64info,omitempty"`
 }
 
@@ -740,10 +740,10 @@ type SubscribeRequest struct {
 	Transport string `protobuf:"bytes,2,opt,name=transport,proto3" json:"transport,omitempty"`
 	Protocol  string `protobuf:"bytes,3,opt,name=protocol,proto3" json:"protocol,omitempty"`
 	Encoding  string `protobuf:"bytes,4,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	User      string `protobuf:"bytes,10,opt,name=user,proto3" json:"user"`
+	User      string `protobuf:"bytes,10,opt,name=user,proto3" json:"user,omitempty"`
 	Channel   string `protobuf:"bytes,11,opt,name=channel,proto3" json:"channel,omitempty"`
 	Token     string `protobuf:"bytes,12,opt,name=token,proto3" json:"token,omitempty"`
-	Meta      Raw    `protobuf:"bytes,13,opt,name=meta,proto3" json:"meta,omitempty"`
+	Meta      []byte `protobuf:"bytes,13,opt,name=meta,proto3" json:"meta,omitempty"`
 }
 
 func (x *SubscribeRequest) Reset() {
@@ -1005,9 +1005,9 @@ type SubscribeResult struct {
 	unknownFields protoimpl.UnknownFields
 
 	ExpireAt int64                    `protobuf:"varint,1,opt,name=expire_at,json=expireAt,proto3" json:"expire_at,omitempty"`
-	Info     Raw                      `protobuf:"bytes,2,opt,name=info,proto3" json:"info,omitempty"`
+	Info     []byte                   `protobuf:"bytes,2,opt,name=info,proto3" json:"info,omitempty"`
 	B64Info  string                   `protobuf:"bytes,3,opt,name=b64info,proto3" json:"b64info,omitempty"`
-	Data     Raw                      `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	Data     []byte                   `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
 	B64Data  string                   `protobuf:"bytes,5,opt,name=b64data,proto3" json:"b64data,omitempty"`
 	Override *SubscribeOptionOverride `protobuf:"bytes,6,opt,name=override,proto3" json:"override,omitempty"`
 }
@@ -1158,11 +1158,11 @@ type PublishRequest struct {
 	Transport string `protobuf:"bytes,2,opt,name=transport,proto3" json:"transport,omitempty"`
 	Protocol  string `protobuf:"bytes,3,opt,name=protocol,proto3" json:"protocol,omitempty"`
 	Encoding  string `protobuf:"bytes,4,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	User      string `protobuf:"bytes,10,opt,name=user,proto3" json:"user"`
+	User      string `protobuf:"bytes,10,opt,name=user,proto3" json:"user,omitempty"`
 	Channel   string `protobuf:"bytes,11,opt,name=channel,proto3" json:"channel,omitempty"`
-	Data      Raw    `protobuf:"bytes,12,opt,name=data,proto3" json:"data,omitempty"`
+	Data      []byte `protobuf:"bytes,12,opt,name=data,proto3" json:"data,omitempty"`
 	B64Data   string `protobuf:"bytes,13,opt,name=b64data,proto3" json:"b64data,omitempty"`
-	Meta      Raw    `protobuf:"bytes,14,opt,name=meta,proto3" json:"meta,omitempty"`
+	Meta      []byte `protobuf:"bytes,14,opt,name=meta,proto3" json:"meta,omitempty"`
 }
 
 func (x *PublishRequest) Reset() {
@@ -1265,7 +1265,7 @@ type PublishResult struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Data        Raw    `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data        []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 	B64Data     string `protobuf:"bytes,2,opt,name=b64data,proto3" json:"b64data,omitempty"`
 	SkipHistory bool   `protobuf:"varint,3,opt,name=skip_history,json=skipHistory,proto3" json:"skip_history,omitempty"`
 }
@@ -1395,11 +1395,11 @@ type RPCRequest struct {
 	Transport string `protobuf:"bytes,2,opt,name=transport,proto3" json:"transport,omitempty"`
 	Protocol  string `protobuf:"bytes,3,opt,name=protocol,proto3" json:"protocol,omitempty"`
 	Encoding  string `protobuf:"bytes,4,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	User      string `protobuf:"bytes,10,opt,name=user,proto3" json:"user"`
+	User      string `protobuf:"bytes,10,opt,name=user,proto3" json:"user,omitempty"`
 	Method    string `protobuf:"bytes,11,opt,name=method,proto3" json:"method,omitempty"`
-	Data      Raw    `protobuf:"bytes,12,opt,name=data,proto3" json:"data,omitempty"`
+	Data      []byte `protobuf:"bytes,12,opt,name=data,proto3" json:"data,omitempty"`
 	B64Data   string `protobuf:"bytes,13,opt,name=b64data,proto3" json:"b64data,omitempty"`
-	Meta      Raw    `protobuf:"bytes,14,opt,name=meta,proto3" json:"meta,omitempty"`
+	Meta      []byte `protobuf:"bytes,14,opt,name=meta,proto3" json:"meta,omitempty"`
 }
 
 func (x *RPCRequest) Reset() {
@@ -1502,7 +1502,7 @@ type RPCResult struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Data    Raw    `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data    []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 	B64Data string `protobuf:"bytes,2,opt,name=b64data,proto3" json:"b64data,omitempty"`
 }
 
