@@ -9,17 +9,19 @@ service CentrifugoUniStream {
 }
 
 message ConnectRequest {
+  // Numeration is in sync with Centrifuge client protocol.
   string token = 1;
   bytes data = 2;
-  string name = 3;
-  string version = 4;
-  map<string, SubscribeRequest> subs = 5;
+  map<string, SubscribeRequest> subs = 3;
+  string name = 4;
+  string version = 5;
 }
 
 message SubscribeRequest {
-  bool recover = 1;
-  string epoch = 2;
-  uint64 offset = 3;
+  // Numeration is in sync with Centrifuge client protocol.
+  bool recover = 3;
+  string epoch = 6;
+  uint64 offset = 7;
 }
 
 message Push {
@@ -32,6 +34,7 @@ message Push {
     SUBSCRIBE = 5;
     CONNECT = 6;
     DISCONNECT = 7;
+    REFRESH = 8;
   }
   PushType type = 1;
   string channel = 2;
@@ -82,12 +85,19 @@ message Connect {
   string version = 2;
   bytes data = 3;
   map<string, SubscribeResult> subs = 4;
+  bool expires = 5;
+  uint32 ttl = 6;
 }
 
 message Disconnect {
   uint32 code = 1;
   string reason = 2;
   bool reconnect = 3;
+}
+
+message Refresh {
+  bool expires = 1;
+  uint32 ttl = 2;
 }
 
 message SubscribeResult {
