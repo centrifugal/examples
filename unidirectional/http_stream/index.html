@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <title></title>
     <style type="text/css">
-        input[type="text"] { width: 300px; }
+        input[type="text"] {
+            width: 300px;
+        }
     </style>
     <script type="text/javascript">
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             let clientID;
             let unsubscribed = false;
             let reconnect = true;
@@ -69,7 +72,7 @@
                 const abortController = new AbortController();
 
                 const eventTarget = new FetchEventTarget(
-                    'http://localhost:8000/boom',
+                    'http://localhost:8000/connection/uni_http_stream',
                     {
                         method: 'POST',
                         headers: new Headers({
@@ -78,7 +81,10 @@
                         }),
                         mode: 'cors', // change to same-origin if sharing same host.
                         signal: abortController.signal,
-                        body: JSON.stringify({})
+                        body: JSON.stringify({
+                            // Replace with valid token or start Centrifugo with `"client_insecure": true` option.
+                            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNjMxMTEwMDUzfQ.Es0-tOOgGD99FulbN0Eu9N2o1V_h9242gol0JdJ-ixo'
+                        })
                     }
                 );
 
@@ -171,7 +177,9 @@
         });
     </script>
 </head>
+
 <body>
-<ul id="messages"></ul>
+    <ul id="messages"></ul>
 </body>
+
 </html>
