@@ -6,6 +6,7 @@ First, run Centrifuge with config:
 ```json
 {
   "token_hmac_secret_key": "secret",
+  "allowed_origins": ["http://localhost:3000"],
   "namespaces": [
     {
       "name": "chat",
