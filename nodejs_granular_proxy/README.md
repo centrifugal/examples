@@ -2,7 +2,9 @@ Example of Centrifugo integration with NodeJS project.
 
 Features covered:
 
+* Using granular proxy mode
 * Using connect proxy feature to authenticate over standard express.js session
+* Distributing RPC requests sent over WebSocket to different app endpoints (could be differrent microservices in practice)  
 
 Why integrate Centrifugo with NodeJS backend:
 

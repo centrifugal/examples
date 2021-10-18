@@ -42,6 +42,16 @@ app.post('/centrifugo/connect', (req, res) => {
     });
 });
 
+app.post('/centrifugo/rpc1', (req, res) => {
+  console.log(req.body);
+  res.json({ result: { data: { "user": req.body.user, "service": "rpc1" } } });
+});
+
+app.post('/centrifugo/rpc2', (req, res) => {
+  console.log(req.body);
+  res.json({ result: { data: { "user": req.body.user, "service": "rpc2" } } });
+});
+
 const myusername = 'demo-user'
 const mypassword = 'demo-pass'
 

@@ -10,6 +10,11 @@
     <a href='/logout'>Click to logout</a>
   </div>
 
+  <div>
+    <button id="btn1">RPC service 1</button>
+    <button id="btn2">RPC service 2</button>
+  </div>
+
   <div id="log"></div>
 
   <script>
@@ -35,6 +40,16 @@
       });
 
       centrifuge.connect();
+
+      document.getElementById('btn1').addEventListener("click", async () => {
+        resp = await centrifuge.namedRPC("s1:test", {});
+        drawText('RPC response from ' + resp.data.service);
+      });
+
+      document.getElementById('btn2').addEventListener("click", async () => {
+        resp = await centrifuge.namedRPC("s2:test", {});
+        drawText('RPC response from ' + resp.data.service);
+      });
     })();
   </script>
 </body>

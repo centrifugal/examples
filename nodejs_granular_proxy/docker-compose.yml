@@ -1,7 +1,7 @@
 version: '3'
 services:
   centrifugo:
-    image: centrifugo/centrifugo:v3.0.4
+    image: centrifugo/centrifugo:v3.1.0
     volumes:
       - ./conf/centrifugo.json:/centrifugo/config.json
     command: centrifugo -c config.json

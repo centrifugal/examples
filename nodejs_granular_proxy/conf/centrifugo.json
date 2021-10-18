@@ -1,0 +1,45 @@
+{
+  "token_hmac_secret_key": "secret",
+  "admin_password": "password",
+  "admin_secret": "my_admin_secret",
+  "api_key": "my_api_key",
+  "allowed_origins": [
+    "http://localhost:9000"
+  ],
+  "user_subscribe_to_personal": true,
+  "use_granular_proxies": true,
+  "connect_proxy_name": "connect",
+  "rpc_namespaces": [
+    {
+      "name": "s1",
+      "rpc_proxy_name": "rpc1"
+    },
+    {
+      "name": "s2",
+      "rpc_proxy_name": "rpc2"
+    }
+  ],
+  "proxies": [
+    {
+      "name": "connect",
+      "type": "http",
+      "endpoint": "http://app:3000/centrifugo/connect",
+      "timeout": "2s",
+      "http_headers": [
+        "Cookie"
+      ]
+    },
+    {
+      "name": "rpc1",
+      "type": "http",
+      "endpoint": "http://app:3000/centrifugo/rpc1",
+      "timeout": "2s"
+    },
+    {
+      "name": "rpc2",
+      "type": "http",
+      "endpoint": "http://app:3000/centrifugo/rpc2",
+      "timeout": "2s"
+    }
+  ]
+}
