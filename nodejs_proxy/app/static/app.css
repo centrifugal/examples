@@ -1,0 +1,12 @@
+body {
+    margin: 5px;
+}
+
+div {
+    margin-bottom: 1rem;
+}
+
+form input[type="submit"] {
+    border-radius: 4px;
+    padding: 0.4rem;
+}

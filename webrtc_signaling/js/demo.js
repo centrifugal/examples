@@ -3,16 +3,14 @@ var datachannel = new DataChannel();
 
 // Set the userid based on what has been defined by DataChannel
 // https://github.com/muaz-khan/WebRTC-Experiment/tree/master/DataChannel#use-custom-user-ids
-// datachannel.userid ="1";
+datachannel.userid = Math.round(Math.random() * 60535) + 5000;
 
 // initialize Centrifuge object first
-var centrifuge = new Centrifuge({
-    url: 'ws://localhost:8000/connection/websocket',
-    debug: true,
-    insecure: true
+var centrifuge = new Centrifuge('ws://localhost:8000/connection/websocket', {
+    debug: true
 });
 
-// Storage of Centrifugo connection client ID
+// Storage for Centrifugo connection client ID.
 var socketId;
 
 // bind listeners on centrifuge object instance events.
@@ -20,7 +18,7 @@ centrifuge.on('connect', function (ctx) {
     socketId = ctx.client;
 });
 
-// Set custom Pusher signalling channel
+// Set custom signalling channel.
 // https://github.com/muaz-khan/WebRTC-Experiment/blob/master/Signaling.md
 datachannel.openSignalingChannel = function (config) {
     var channel = config.channel || this.channel || "default-channel";

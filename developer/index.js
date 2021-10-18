@@ -3,7 +3,7 @@ var centrifuge;
 var log;
 
 function getJWT(user, secret) {
-    var oHeader = {alg: 'HS256', typ: 'JWT'};
+    var oHeader = { alg: 'HS256', typ: 'JWT' };
     // Payload
     var oPayload = {};
     var tEnd = KJUR.jws.IntDate.get('now + 1day');
@@ -43,7 +43,7 @@ function initConnection() {
     if (!secret) {
         secret = defaultHmacSecret;
         $("#secret").val(defaultHmacSecret);
-    } 
+    }
 
     var channel = $("#channel").val();
     if (!channel) {
@@ -60,24 +60,24 @@ function initConnection() {
     });
     centrifuge.setToken(token);
 
-    centrifuge.on('connect', function(ctx) {
+    centrifuge.on('connect', function (ctx) {
         addMessage("connected to Centrifugo", ctx);
         subscribe();
     });
 
-    centrifuge.on('disconnect', function(ctx){
+    centrifuge.on('disconnect', function (ctx) {
         addMessage('disconnected from Centrifugo', ctx);
     });
 
     centrifuge.connect();
 }
 
-$(function(){
+$(function () {
     log = $('#log');
 
     initConnection();
 
-    $("#credentials input").on("keyup", function(e){
+    $("#credentials input").on("keyup", function (e) {
         if (e.keyCode === 13) {
             initConnection();
         }
@@ -86,7 +86,7 @@ $(function(){
 
 
 function getCurrentTime() {
-    var pad = function (n) {return ("0" + n).slice(-2);};
+    var pad = function (n) { return ("0" + n).slice(-2); };
     var d = new Date();
     return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
@@ -99,7 +99,7 @@ function createMessage(text, data) {
     var text_span = $('<span class="text"></span>');
     var dataBlock = null
     if (data) {
-        dataBlock = $('<pre class="event-data">'+ prettifyJson(data) +'</pre>')
+        dataBlock = $('<pre class="event-data">' + prettifyJson(data) + '</pre>')
     }
     time_span.text(time);
     text_span.text(text);
@@ -116,41 +116,41 @@ var subscription;
 function subscribe() {
     var channel = $("#channel").val();
 
-    subscription = centrifuge.subscribe(channel, function(message) {
+    subscription = centrifuge.subscribe(channel, function (message) {
         if (message.data) {
             addMessage(message.data["input"], message.data["nick"]);
         }
     });
 
-    subscription.on('subscribe', function(message) {
+    subscription.on('subscribe', function (message) {
         addMessage("successfully subscribed on channel", message);
     });
 
-    subscription.on('error', function(message) {
+    subscription.on('error', function (message) {
         addMessage("error subscribing on channel", message);
     });
 
-    subscription.on('join', function(message) {
+    subscription.on('join', function (message) {
         addMessage('join event received', message);
     });
 
-    subscription.on('leave', function(message) {
+    subscription.on('leave', function (message) {
         addMessage('leave event received', message);
     });
 
-    subscription.presence().then(function(message) {
+    subscription.presence().then(function (message) {
         var count = 0;
-        for (var key in message.data){
+        for (var key in message.data) {
             count++;
         }
         addMessage('presence response received: ' + count + ' clients connected', message);
-    }, function(err) {
+    }, function (err) {
         addMessage('presence error', err);
     });
 
-    subscription.history().then(function(message) {
+    subscription.history().then(function (message) {
         addMessage('history response received', message);
-    }, function(err) {
+    }, function (err) {
         addMessage('history error', err);
     });
 

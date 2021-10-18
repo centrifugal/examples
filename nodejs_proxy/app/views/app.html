@@ -1,0 +1,57 @@
+<html>
+
+<head>
+  <link rel="stylesheet" href="app.css">
+  <script src="https://cdn.jsdelivr.net/gh/centrifugal/centrifuge-js@2.8.3/dist/centrifuge.min.js"></script>
+</head>
+
+<body>
+  <div>
+    <a href='/logout'>Click to logout</a>
+  </div>
+
+  <div>
+    <button id="btn1">RPC service 1</button>
+    <button id="btn2">RPC service 2</button>
+  </div>
+
+  <div id="log"></div>
+
+  <script>
+    function drawText(text) {
+      const div = document.createElement('div');
+      div.innerHTML = text;
+      document.getElementById('log').appendChild(div);
+    }
+
+    (async () => {
+      const centrifuge = new Centrifuge('ws://localhost:9000/connection/websocket');
+
+      centrifuge.on('connect', function () {
+        drawText('Connected to Centrifugo');
+      });
+
+      centrifuge.on('disconnect', function () {
+        drawText('Disconnected from Centrifugo');
+      });
+
+      centrifuge.on('publish', function (ctx) {
+        drawText('Publication, time = ' + ctx.data.time);
+      });
+
+      centrifuge.connect();
+
+      document.getElementById('btn1').addEventListener("click", async () => {
+        resp = await centrifuge.namedRPC("s1:test", {});
+        drawText('RPC response from ' + resp.data.service);
+      });
+
+      document.getElementById('btn2').addEventListener("click", async () => {
+        resp = await centrifuge.namedRPC("s2:test", {});
+        drawText('RPC response from ' + resp.data.service);
+      });
+    })();
+  </script>
+</body>
+
+</html>

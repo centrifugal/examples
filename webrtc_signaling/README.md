@@ -13,7 +13,7 @@ First run Centrifugo with config like this:
 {
   "secret": "secret",
   "publish": true,
-  "insecure": true
+  "client_insecure": true
 }
 ```
 
@@ -31,7 +31,7 @@ Start Centrifugo with config above:
 Now start serving this chat application running from inside this folder:
 
 ```
-python -m SimpleHTTPServer 3000
+python3 -m http.server 3000
 ```
 
 Then go to http://localhost:3000/ and follow instructions.
