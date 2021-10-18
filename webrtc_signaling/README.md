@@ -11,7 +11,7 @@ First run Centrifugo with config like this:
 
 ```javascript
 {
-  "secret": "secret",
+  "token_hmac_secret_key": "secret",
   "publish": true,
   "client_insecure": true
 }
