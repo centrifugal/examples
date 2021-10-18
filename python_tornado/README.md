@@ -5,17 +5,16 @@ First, run Centrifuge with config:
 
 ```json
 {
-  "secret": "secret",
+  "token_hmac_secret_key": "secret",
+  "allowed_origins": ["http://localhost:3000"],
   "namespaces": [
     {
       "name": "chat",
-      "anonymous": true,
       "publish": true,
-      "watch": true,
       "presence": true,
       "join_leave": true,
       "history_size": 10,
-      "history_lifetime": 30
+      "history_ttl": "30s"
     }
   ]
 }
