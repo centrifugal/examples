@@ -3,7 +3,7 @@ Centrifuge with Django
 
 Simple demo site to display events on Google map in real-time.
 
-![scheme](https://raw.githubusercontent.com/centrifugal/examples/master/django/demo.gif)
+![scheme](https://raw.githubusercontent.com/centrifugal/examples/master/python_django/demo.gif)
 
 To run demo
 
