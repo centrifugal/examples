@@ -1,0 +1,23 @@
+{
+  "port": 8000,
+  "engine": "redis",
+  "redis_address": "redis://redis:6379",
+  "allowed_origins": [
+    "http://localhost:9000",
+    "http://127.0.0.1:9000"
+  ],
+  "proxy_connect_endpoint": "http://app:8000/chat/centrifugo/connect/",
+  "proxy_publish_endpoint": "http://app:8000/chat/centrifugo/publish/",
+  "proxy_subscribe_endpoint": "http://app:8000/chat/centrifugo/subscribe/",
+  "proxy_http_headers": [
+    "Cookie"
+  ],
+  "namespaces": [
+    {
+      "name": "rooms",
+      "publish": true,
+      "proxy_publish": true,
+      "proxy_subscribe": true
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Select a chat room</title>
+    <style>
+        @import 'https://fonts.googleapis.com/css?family=Noto+Sans';
+
+        :root {
+            --gray: #34495e;
+            --darkgray: #2c3e50;
+        }
+
+        body {
+            padding: 0;
+            margin: 0;
+            background: -moz-linear-gradient(-45deg, #183850 0, #183850 25%, #192C46 50%, #22254C 75%, #22254C 100%);
+            background: -webkit-linear-gradient(-45deg, #183850 0, #183850 25%, #192C46 50%, #22254C 75%, #22254C 100%);
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            color: white;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            width: 20em;
+            border-radius: .25em;
+            overflow: hidden;
+        }
+
+        input {
+            width: 100%;
+            height: 48px;
+            font: 32px/48px "Noto Sans", sans-serif;
+            background: none;
+            color: #0AD5C1;
+            border: 0;
+            border-bottom: 1px solid rgba(25, 147, 147, 0.2);
+            outline: none;
+        }
+
+        .input-help {
+            margin-top: 1em;
+            text-align: center;
+            font: 16px/24px "Noto Sans", sans-serif;
+        }
+
+        a {
+            font-weight: bold;
+            color: var(--gray);
+            text-decoration: none;
+            padding: .25em;
+            border-radius: .25em;
+            background: rgb(59, 160, 249);
+        }
+
+        .center {
+            /* Center vertically and horizontally */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="center">
+        <div class="input-wrapper">
+            <input type="text" id="room-name-input" />
+        </div>
+        <div class="input-help">
+            Type a room name to <a id="room-name-submit" href="#">JOIN</a>
+        </div>
+    </div>
+    <script>
+        const nameInput = document.querySelector('#room-name-input');
+        const nameSubmit = document.querySelector('#room-name-submit');
+        nameInput.focus();
+        nameInput.onkeyup = function (e) {
+            if (e.keyCode === 13) {  // enter, return
+                nameSubmit.click();
+            }
+        };
+        nameSubmit.onclick = function (e) {
+            e.preventDefault();
+            var roomName = nameInput.value;
+            if (!roomName) {
+                return;
+            }
+            window.location.pathname = '/chat/room/' + roomName + '/';
+        };
+    </script>
+</body>
+
+</html>
