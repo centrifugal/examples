@@ -42,7 +42,12 @@ class IndexHandler(tornado.web.RequestHandler):
 
 
 def get_connection_token():
-    token = jwt.encode({"sub": USER_ID, "info": INFO, "exp": int(time.time()) + 10}, key=options.secret)
+    token = jwt.encode({
+        "sub": USER_ID,
+        "info": INFO,
+        "exp": int(time.time()) + 10,
+        "iat": int(time.time())
+    }, key=options.secret)
     return token.decode()
 
 
@@ -80,6 +85,7 @@ class CentrifugeSubscribeHandler(tornado.web.RequestHandler):
     """
     Allow all users to subscribe on channels they want.
     """
+
     def check_xsrf_cookie(self):
         pass
 
@@ -92,22 +98,23 @@ class CentrifugeSubscribeHandler(tornado.web.RequestHandler):
         client = data.get("client", "")
         channels = data.get("channels", [])
 
-        logging.info("{0} wants to subscribe on {1}".format(client, ", ".join(channels)))
+        logging.info("{0} wants to subscribe on {1}".format(
+            client, ", ".join(channels)))
 
         channel_data = []
 
         for channel in channels:
-                channel_data.append({
+            channel_data.append({
+                "channel": channel,
+                "token": jwt.encode({
+                    "client": client,
                     "channel": channel,
-                    "token": jwt.encode({
-                        "client": client,
-                        "channel": channel,
-                        "info": {
-                            'extra': 'extra for ' + channel
-                        }, 
-                        "exp": int(time.time()) + 10
-                    }, key=options.secret).decode()
-                })
+                    "info": {
+                        'extra': 'extra for ' + channel
+                    },
+                    "exp": int(time.time()) + 10
+                }, key=options.secret).decode()
+            })
 
         # but here we allow to join any private channel and return additional
         # JSON info specific for channel
@@ -121,6 +128,7 @@ class CentrifugeRefreshHandler(tornado.web.RequestHandler):
     """
     Allow all users to subscribe on channels they want.
     """
+
     def check_xsrf_cookie(self):
         pass
 
@@ -131,7 +139,6 @@ class CentrifugeRefreshHandler(tornado.web.RequestHandler):
         self.write(json.dumps({
             'token': get_connection_token()
         }))
-
 
 
 # Connect proxy example handler.
@@ -184,6 +191,8 @@ class CentrifugoConnectHandler(tornado.web.RequestHandler):
         self.write(data)
 
 # Refresh proxy example handler.
+
+
 class CentrifugoRefreshHandler(tornado.web.RequestHandler):
 
     def check_xsrf_cookie(self):
