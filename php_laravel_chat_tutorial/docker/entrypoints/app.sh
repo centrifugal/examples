@@ -15,6 +15,7 @@ fi
 
 php artisan key:generate
 
+echo "Npm install..."
 npm install --no-cache
 npm run dev
 
