@@ -1,18 +1,19 @@
 version: '3'
 services:
-#  centrifugo:
-#    image: centrifugo/centrifugo:v3.0.5
-#    volumes:
-#      - ./conf/centrifugo.json:/centrifugo/config.json
-#    command: centrifugo -c config.json
-#    ports:
-#      - 8001:8001
-#    ulimits:
-#      nofile:
-#        soft: 65535
-#        hard: 65535
-#    depends_on:
-#      - redis
+  centrifugo:
+    image: centrifugo/centrifugo:v3.0.5
+    container_name: centrifugo
+    volumes:
+      - ./docker/conf/centrifugo.json:/centrifugo/config.json
+    command: centrifugo -c config.json
+    ports:
+      - 8001:8001
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    networks:
+      - app
 
   pg:
     image: postgres:13.3-alpine

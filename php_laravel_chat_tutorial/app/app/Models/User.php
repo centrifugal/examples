@@ -41,4 +41,9 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function rooms()
+    {
+        return $this->belongsToMany(Room::class, 'users_rooms');
+    }
 }

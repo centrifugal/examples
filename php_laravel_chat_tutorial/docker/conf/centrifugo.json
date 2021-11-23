@@ -1,7 +1,6 @@
 {
   "port": 8000,
-  "engine": "redis",
-  "redis_address": "redis://redis:6379",
+  "engine": "memory",
   "allowed_origins": [
     "http://localhost:9000",
     "http://127.0.0.1:9000"

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\RoomController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,11 +15,12 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return redirect('/dashboard');
+    return redirect('/rooms');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth'])->name('dashboard');
+Route::get('/rooms', [RoomController::class, 'index'])->middleware(['auth'])->name('rooms.index');
+Route::post('/rooms', [RoomController::class, 'store'])->middleware(['auth'])->name('rooms.store');
+Route::get('/rooms/{id}', [RoomController::class, 'show'])->middleware(['auth'])->name('rooms.show');
+Route::post('/rooms/{id}', [RoomController::class, 'join'])->middleware(['auth'])->name('rooms.join');
 
 require __DIR__.'/auth.php';
