@@ -201,9 +201,9 @@
     <div class="chat-message">
         <input id="chat-message-input" class="chat-message-input" type="text" autocomplete="off" autofocus />
     </div>
-    <div id="room-name">{{ $room->name }}</div>
+    <h3 id="room-name" style="color: darkseagreen">Room: {{ $room->name }}</h3>
     <script>
-        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+        const roomName = document.getElementById('room-name').textContent
         const chatThread = document.querySelector('#chat-thread');
         const messageInput = document.querySelector('#chat-message-input');
 

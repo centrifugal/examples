@@ -2,12 +2,12 @@
   "port": 8000,
   "engine": "memory",
   "allowed_origins": [
-    "http://localhost:9000",
-    "http://127.0.0.1:9000"
+    "http://localhost",
+    "http://127.0.0.1"
   ],
-  "proxy_connect_endpoint": "http://app:8000/chat/centrifugo/connect/",
-  "proxy_publish_endpoint": "http://app:8000/chat/centrifugo/publish/",
-  "proxy_subscribe_endpoint": "http://app:8000/chat/centrifugo/subscribe/",
+  "proxy_connect_endpoint": "http://nginx/centrifugo/connect/",
+  "proxy_publish_endpoint": "http://nginx/centrifugo/publish/",
+  "proxy_subscribe_endpoint": "http://nginx/centrifugo/subscribe/",
   "proxy_http_headers": [
     "Cookie"
   ],

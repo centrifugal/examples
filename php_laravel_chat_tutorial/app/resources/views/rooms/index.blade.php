@@ -28,13 +28,10 @@
                     <div class="my-2 ml-5">
                         {{ $room->name }}
                         @if ($room->users->where('id', '=', Auth::user()->id)->first())
-                            <a href="#" class="inline-block px-4 py-2 bg-green-500 rounded-md text-xs text-white uppercase hover:bg-green-300">
+                            <a href="{{ route('rooms.show', $room->id) }}" class="inline-block px-4 py-2 bg-green-500 rounded-md text-xs text-white uppercase hover:bg-green-300">
                                 View
                             </a>
                         @else
-                            {{--<a href="#" class="inline-block px-4 py-2 bg-blue-700 rounded-md text-xs text-white uppercase hover:bg-blue-500">
-                                Join
-                            </a>--}}
                             <form class="inline-block px-4 py-2 bg-blue-700 rounded-md text-xs text-white hover:bg-blue-500" method="post" action="{{ route('rooms.join', $room->id) }}">
                                 @csrf
                                 <button type="submit">JOIN</button>

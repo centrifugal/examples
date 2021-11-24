@@ -18,9 +18,14 @@ Route::get('/', function () {
     return redirect('/rooms');
 });
 
-Route::get('/rooms', [RoomController::class, 'index'])->middleware(['auth'])->name('rooms.index');
-Route::post('/rooms', [RoomController::class, 'store'])->middleware(['auth'])->name('rooms.store');
-Route::get('/rooms/{id}', [RoomController::class, 'show'])->middleware(['auth'])->name('rooms.show');
-Route::post('/rooms/{id}', [RoomController::class, 'join'])->middleware(['auth'])->name('rooms.join');
+Route::group([
+    'middleware' => 'auth',
+], function () {
+    Route::get('/rooms', [RoomController::class, 'index'])->name('rooms.index');
+    Route::post('/rooms', [RoomController::class, 'store'])->name('rooms.store');
+    Route::get('/rooms/{id}', [RoomController::class, 'show'])->name('rooms.show');
+    Route::post('/rooms/{id}', [RoomController::class, 'join'])->name('rooms.join');
+});
 
 require __DIR__.'/auth.php';
+require __DIR__.'/api.php';
