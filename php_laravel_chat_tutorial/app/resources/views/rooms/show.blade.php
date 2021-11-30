@@ -197,7 +197,11 @@
 </head>
 
 <body>
-    <ul id="chat-thread" class="chat-thread"></ul>
+    <ul id="chat-thread" class="chat-thread">
+        @foreach($room->messages as $message)
+            <li>{{ $message->message }}</li>
+        @endforeach
+    </ul>
     <div class="chat-message">
         <input id="chat-message-input" class="chat-message-input" type="text" autocomplete="off" autofocus />
     </div>
@@ -218,11 +222,7 @@
         });
 
         const sub = centrifuge.subscribe('rooms:' + roomName, function (ctx) {
-            const chatNewThread = document.createElement('li');
-            const chatNewMessage = document.createTextNode(ctx.data.message);
-            chatNewThread.appendChild(chatNewMessage);
-            chatThread.appendChild(chatNewThread);
-            chatThread.scrollTop = chatThread.scrollHeight;
+            addMessage(ctx.data.message)
         });
 
         centrifuge.connect();
@@ -232,13 +232,23 @@
             if (e.keyCode === 13) {  // enter, return
                 e.preventDefault();
                 const message = messageInput.value;
+                const roomId = {{ $room->id }};
                 if (!message) {
                     return;
                 }
-                sub.publish({ 'message': message });
+
+                sub.publish({ 'message': message, 'room_id': roomId});
                 messageInput.value = '';
             }
         };
+
+        function addMessage(text) {
+            const chatNewThread = document.createElement('li');
+            const chatNewMessage = document.createTextNode(text);
+            chatNewThread.appendChild(chatNewMessage);
+            chatThread.appendChild(chatNewThread);
+            chatThread.scrollTop = chatThread.scrollHeight;
+        }
     </script>
 </body>
 

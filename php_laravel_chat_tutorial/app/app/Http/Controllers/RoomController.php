@@ -21,7 +21,7 @@ class RoomController extends Controller
     public function show(int $id)
     {
         return view('rooms.show', [
-            'room' => Room::with('users')->find($id)
+            'room' => Room::with(['users', 'messages'])->find($id)
         ]);
     }
 
