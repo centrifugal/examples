@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CentrifugoProxyController;
+use App\Http\Controllers\RoomController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -25,4 +26,5 @@ Route::group([
     Route::post('/centrifugo/connect', [CentrifugoProxyController::class, 'connect']);
     Route::post('/centrifugo/publish', [CentrifugoProxyController::class, 'publish']);
     Route::post('/centrifugo/subscribe', [CentrifugoProxyController::class, 'subscribe']);
+    Route::post('/rooms/{id}/publish', [RoomController::class, 'publish'])->name('rooms.publish');
 });

@@ -27,7 +27,7 @@
                 @foreach($rooms as $room)
                     <div class="my-2 ml-5">
                         {{ $room->name }}
-                        @if ($room->users->where('id', '=', Auth::user()->id)->first())
+                        @if ($room->users->where('id', Auth::user()->id)->first())
                             <a href="{{ route('rooms.show', $room->id) }}" class="inline-block px-4 py-2 bg-green-500 rounded-md text-xs text-white uppercase hover:bg-green-300">
                                 View
                             </a>

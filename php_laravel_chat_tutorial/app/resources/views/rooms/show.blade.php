@@ -198,16 +198,40 @@
 
 <body>
     <ul id="chat-thread" class="chat-thread">
-        @foreach($room->messages as $message)
+        @foreach($currRoom->messages as $message)
             <li>{{ $message->message }}</li>
         @endforeach
     </ul>
     <div class="chat-message">
         <input id="chat-message-input" class="chat-message-input" type="text" autocomplete="off" autofocus />
     </div>
-    <h3 id="room-name" style="color: darkseagreen">Room: {{ $room->name }}</h3>
+    <h3 id="room-name" style="color: darkseagreen">Room: {{ $currRoom->name }}</h3>
+
+    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+        <div class="p-6 bg-white border-b border-gray-200">
+            Rooms:
+        </div>
+
+        @foreach($rooms as $room)
+            <div class="my-2 ml-5">
+                {{ $room->name }}
+                @if ($room->users->where('id', Auth::user()->id)->first())
+                    <a href="{{ route('rooms.show', $room->id) }}" class="inline-block px-4 py-2 bg-green-500 rounded-md text-xs text-white uppercase hover:bg-green-300">
+                        View
+                    </a>
+                @else
+                    <form class="inline-block px-4 py-2 bg-blue-700 rounded-md text-xs text-white hover:bg-blue-500" method="post" action="{{ route('rooms.join', $room->id) }}">
+                        @csrf
+                        <button type="submit">JOIN</button>
+                    </form>
+                @endif
+            </div>
+        @endforeach
+    </div>
+
     <script>
-        const roomName = document.getElementById('room-name').textContent
+        const userId = {{ $userId }}
+        const roomId = {{ $currRoom->id }};
         const chatThread = document.querySelector('#chat-thread');
         const messageInput = document.querySelector('#chat-message-input');
 
@@ -221,23 +245,39 @@
             console.log("disconnected", ctx);
         });
 
-        const sub = centrifuge.subscribe('rooms:' + roomName, function (ctx) {
-            addMessage(ctx.data.message)
+        centrifuge.on('publish', function(ctx) {
+            const channel = ctx.channel;
+            const payload = JSON.stringify(ctx.data);
+            console.log('Publication from server-side channel', channel, payload);
+
+            if (ctx.data.roomId === roomId) {
+                addMessage(ctx.data.text)
+            } else {
+
+            }
         });
 
         centrifuge.connect();
 
         messageInput.focus();
+        var csrfToken = "{{ csrf_token() }}";
         messageInput.onkeyup = function (e) {
             if (e.keyCode === 13) {  // enter, return
                 e.preventDefault();
                 const message = messageInput.value;
-                const roomId = {{ $room->id }};
                 if (!message) {
                     return;
                 }
 
-                sub.publish({ 'message': message, 'room_id': roomId});
+                var payload = JSON.stringify({
+                    message: message
+                })
+
+                var xhttp = new XMLHttpRequest();
+                xhttp.open("POST", "/rooms/"+roomId+"/publish")
+                xhttp.setRequestHeader("X-CSRF-TOKEN", csrfToken)
+                xhttp.send(payload);
+
                 messageInput.value = '';
             }
         };
