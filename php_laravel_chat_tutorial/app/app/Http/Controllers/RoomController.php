@@ -31,7 +31,9 @@ class RoomController extends Controller
 
     public function show(int $id)
     {
-        $rooms = Room::with('users')->whereHas('users', function (Builder $query) {
+        $rooms = Room::with(['users', 'messages' => function ($query) {
+            $query->orderBy('created_at', 'asc');
+        }])->whereHas('users', function (Builder $query) {
             $query->where('users_rooms.user_id', Auth::user()->id);
         })->get();
 
@@ -75,7 +77,7 @@ class RoomController extends Controller
         $status = Response::HTTP_OK;
 
         try {
-            Message::create([
+            $message = Message::create([
                 'sender_id' => Auth::user()->id,
                 'message' => $requestData["message"],
                 'room_id' => $id,
@@ -89,7 +91,8 @@ class RoomController extends Controller
             }
 
             $this->centrifugo->broadcast($channels, [
-                "text" => $requestData["message"],
+                "text" => $message->message,
+                "createdAt" => $message->created_at->toDateTimeString(),
                 "roomId" => $id,
             ]);
         } catch (Throwable $e) {

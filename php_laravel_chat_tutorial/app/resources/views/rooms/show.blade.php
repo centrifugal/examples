@@ -5,16 +5,12 @@
     <meta charset="utf-8" />
     <title>Chat Room</title>
     <script src="https://cdn.jsdelivr.net/gh/centrifugal/centrifuge-js@2.8.3/dist/centrifuge.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css">
     <style>
         @import 'https://fonts.googleapis.com/css?family=Noto+Sans';
 
         body {
-            padding: 0;
-            margin: 0;
-            background: -moz-linear-gradient(-45deg, #183850 0, #183850 25%, #192C46 50%, #22254C 75%, #22254C 100%);
-            background: -webkit-linear-gradient(-45deg, #183850 0, #183850 25%, #192C46 50%, #22254C 75%, #22254C 100%);
-            background-repeat: no-repeat;
-            background-attachment: fixed;
+            background-color: #f3f4f6;
         }
 
         ::-webkit-scrollbar {
@@ -197,6 +193,37 @@
 </head>
 
 <body>
+    <h3 id="room-name" style="color: darkseagreen">Room: {{ $currRoom->name }}</h3>
+    <div class="col-md-5 col-lg-4 order-md-last">
+        <ul class="list-group mb-3">
+            @foreach($rooms as $room)
+                @if ($room->id === $currRoom->id)
+                    @continue
+                @endif
+                <li id="room-{{ $room->id }}" class="list-group-item d-flex justify-content-between lh-sm">
+                    <div>
+                        <h5 class="my-0">
+                            <a href="{{ route('rooms.show', $room->id) }}" class="btn btn-sm btn-info mb-2">
+                                {{ $room->name }}
+                            </a>
+                        </h5>
+                        @if ($room->messages->count() > 0)
+                            <div class="message-block">
+                                <span class="message-text text-muted" style="display: block; font-size: 15px;">{{ $room->messages->last()->message }}</span>
+                                <span class="message-date text-info" style="font-size: .700em;">{{ $room->messages->last()->created_at }}</span>
+                            </div>
+                        @else
+                            <div class="message-block">
+                                <span class="message-text text-muted" style="display: block; font-size: 15px;"></span>
+                                <span class="message-date text-info" style="font-size: .700em;"></span>
+                            </div>
+                        @endif
+                    </div>
+                </li>
+            @endforeach
+        </ul>
+    </div>
+
     <ul id="chat-thread" class="chat-thread">
         @foreach($currRoom->messages as $message)
             <li>{{ $message->message }}</li>
@@ -204,29 +231,6 @@
     </ul>
     <div class="chat-message">
         <input id="chat-message-input" class="chat-message-input" type="text" autocomplete="off" autofocus />
-    </div>
-    <h3 id="room-name" style="color: darkseagreen">Room: {{ $currRoom->name }}</h3>
-
-    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-        <div class="p-6 bg-white border-b border-gray-200">
-            Rooms:
-        </div>
-
-        @foreach($rooms as $room)
-            <div class="my-2 ml-5">
-                {{ $room->name }}
-                @if ($room->users->where('id', Auth::user()->id)->first())
-                    <a href="{{ route('rooms.show', $room->id) }}" class="inline-block px-4 py-2 bg-green-500 rounded-md text-xs text-white uppercase hover:bg-green-300">
-                        View
-                    </a>
-                @else
-                    <form class="inline-block px-4 py-2 bg-blue-700 rounded-md text-xs text-white hover:bg-blue-500" method="post" action="{{ route('rooms.join', $room->id) }}">
-                        @csrf
-                        <button type="submit">JOIN</button>
-                    </form>
-                @endif
-            </div>
-        @endforeach
     </div>
 
     <script>
@@ -253,7 +257,10 @@
             if (ctx.data.roomId === roomId) {
                 addMessage(ctx.data.text)
             } else {
-
+                const lastRoomMessageText = document.querySelector('#room-' + ctx.data.roomId + ' .message-block .message-text');
+                const lastRoomMessageDate = document.querySelector('#room-' + ctx.data.roomId + ' .message-block .message-date');
+                lastRoomMessageText.innerHTML = ctx.data.text;
+                lastRoomMessageDate.innerHTML = ctx.data.createdAt;
             }
         });
 
