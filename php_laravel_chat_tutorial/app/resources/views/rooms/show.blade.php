@@ -197,36 +197,36 @@
     <div class="col-md-5 col-lg-4 order-md-last">
         <ul class="list-group mb-3">
             @foreach($rooms as $room)
-                @if ($room->id === $currRoom->id)
-                    @continue
-                @endif
-                <li id="room-{{ $room->id }}" class="list-group-item d-flex justify-content-between lh-sm">
-                    <div>
-                        <h5 class="my-0">
-                            <a href="{{ route('rooms.show', $room->id) }}" class="btn btn-sm btn-info mb-2">
-                                {{ $room->name }}
-                            </a>
-                        </h5>
-                        @if ($room->messages->count() > 0)
-                            <div class="message-block">
-                                <span class="message-text text-muted" style="display: block; font-size: 15px;">{{ $room->messages->last()->message }}</span>
-                                <span class="message-date text-info" style="font-size: .700em;">{{ $room->messages->last()->created_at }}</span>
-                            </div>
-                        @else
-                            <div class="message-block">
-                                <span class="message-text text-muted" style="display: block; font-size: 15px;"></span>
-                                <span class="message-date text-info" style="font-size: .700em;"></span>
-                            </div>
-                        @endif
+            @if ($room->id === $currRoom->id)
+            @continue
+            @endif
+            <li id="room-{{ $room->id }}" class="list-group-item d-flex justify-content-between lh-sm">
+                <div>
+                    <h5 class="my-0">
+                        <a href="{{ route('rooms.show', $room->id) }}" class="btn btn-sm btn-info mb-2">
+                            {{ $room->name }}
+                        </a>
+                    </h5>
+                    @if ($room->messages->count() > 0)
+                    <div class="message-block">
+                        <span class="message-text text-muted" style="display: block; font-size: 15px;">{{ $room->messages->last()->message }}</span>
+                        <span class="message-date text-info" style="font-size: .700em;">{{ $room->messages->last()->created_at }}</span>
                     </div>
-                </li>
+                    @else
+                    <div class="message-block">
+                        <span class="message-text text-muted" style="display: block; font-size: 15px;"></span>
+                        <span class="message-date text-info" style="font-size: .700em;"></span>
+                    </div>
+                    @endif
+                </div>
+            </li>
             @endforeach
         </ul>
     </div>
 
     <ul id="chat-thread" class="chat-thread">
         @foreach($currRoom->messages as $message)
-            <li>{{ $message->message }}</li>
+        <li>{{ $message->message }}</li>
         @endforeach
     </ul>
     <div class="chat-message">
@@ -234,18 +234,26 @@
     </div>
 
     <script>
-        const userId = {{ $userId }}
-        const roomId = {{ $currRoom->id }};
+        const userId = {
+            {
+                $userId
+            }
+        }
+        const roomId = {
+            {
+                $currRoom - > id
+            }
+        };
         const chatThread = document.querySelector('#chat-thread');
         const messageInput = document.querySelector('#chat-message-input');
 
         const centrifuge = new Centrifuge("ws://" + window.location.host + "/connection/websocket");
 
-        centrifuge.on('connect', function (ctx) {
+        centrifuge.on('connect', function(ctx) {
             console.log("connected", ctx);
         });
 
-        centrifuge.on('disconnect', function (ctx) {
+        centrifuge.on('disconnect', function(ctx) {
             console.log("disconnected", ctx);
         });
 
@@ -268,8 +276,8 @@
 
         messageInput.focus();
         var csrfToken = "{{ csrf_token() }}";
-        messageInput.onkeyup = function (e) {
-            if (e.keyCode === 13) {  // enter, return
+        messageInput.onkeyup = function(e) {
+            if (e.keyCode === 13) { // enter, return
                 e.preventDefault();
                 const message = messageInput.value;
                 if (!message) {
@@ -281,7 +289,7 @@
                 })
 
                 var xhttp = new XMLHttpRequest();
-                xhttp.open("POST", "/rooms/"+roomId+"/publish")
+                xhttp.open("POST", "/rooms/" + roomId + "/publish")
                 xhttp.setRequestHeader("X-CSRF-TOKEN", csrfToken)
                 xhttp.send(payload);
 
