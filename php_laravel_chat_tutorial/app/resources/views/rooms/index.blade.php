@@ -319,7 +319,7 @@
                                             </a>
                                             <div class="chat-about">
                                                 <h6 class="m-b-0">Aiden Chavez</h6>
-                                                <small>Last seen: 2 hours ago</small>
+                                                <small>Num room participants: 123</small>
                                             </div>
                                         </div>
                                     </div>
