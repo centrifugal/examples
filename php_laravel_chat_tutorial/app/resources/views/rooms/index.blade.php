@@ -1,6 +1,7 @@
 <x-app-layout>
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/centrifugal/centrifuge-js@2.8.3/dist/centrifuge.min.js"></script>
 
     <style>
         body {
@@ -297,16 +298,14 @@
                             <div id="plist" class="people-list">
                                 <ul class="list-unstyled chat-list mt-2 mb-0">
                                     @foreach($rooms as $room)
-                                    <li class="clearfix active">
-                                        <img src="https://bootdey.com/img/Content/avatar/avatar1.png" alt="avatar">
-                                        <div class="about">
-                                            <div class="name">{{ $room->name }}</div>
-                                            <div class="status">Last message here</div>
-                                        </div>
-                                        @if ($room->users->where('id', Auth::user()->id)->first())
-                                        @else
-                                        @endif
-                                    </li>
+                                        <li onclick="location.href='{{ route('rooms.show', $room->id) }}'" id="room-{{ $room->id }}" class="clearfix {{ !empty($currRoom) && $currRoom->id === $room->id ? 'active' : ''}}">
+                                            <img src="http://127.0.0.1/chat-icon.png" alt="avatar">
+                                            <div class="about">
+                                                <div class="name">{{ $room->name }}</div>
+                                                <div class="status">{{ ($room->messages->count() > 0) ? $room->messages->last()->message : '' }}</div>
+                                                <div class="status date">{{ ($room->messages->count() > 0) ? $room->messages->last()->created_at->toDateTimeString() : '' }}</div>
+                                            </div>
+                                        </li>
                                     @endforeach
                                 </ul>
                             </div>
@@ -317,44 +316,63 @@
                                             <a href="javascript:void(0);" data-toggle="modal" data-target="#view_info">
                                                 <img src="https://bootdey.com/img/Content/avatar/avatar2.png" alt="avatar">
                                             </a>
-                                            <div class="chat-about">
-                                                <h6 class="m-b-0">Aiden Chavez</h6>
-                                                <small>Num room participants: 123</small>
-                                            </div>
+                                            @if (!empty($currRoom))
+                                                <div class="chat-about">
+                                                    <h6 class="m-b-0">{{ Auth::user()->name }}</h6>
+                                                    <small>Num room participants: {{ $currRoom->users->count() }}</small>
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
-                                <div class="chat-history">
-                                    <ul class="m-b-0">
-                                        <li class="clearfix">
-                                            <div class="message-data text-right">
-                                                <span class="message-data-time">10:10 AM, Today</span>
-                                                <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="avatar">
-                                            </div>
-                                            <div class="message other-message float-right"> Hi Aiden, how are you? How is the project coming along? </div>
-                                        </li>
-                                        <li class="clearfix">
-                                            <div class="message-data">
-                                                <span class="message-data-time">10:12 AM, Today</span>
-                                            </div>
-                                            <div class="message my-message">Are we meeting today?</div>
-                                        </li>
-                                        <li class="clearfix">
-                                            <div class="message-data">
-                                                <span class="message-data-time">10:15 AM, Today</span>
-                                            </div>
-                                            <div class="message my-message">Project has been already finished and I have results to show you.</div>
-                                        </li>
-                                    </ul>
-                                </div>
-                                <div class="chat-message clearfix">
-                                    <div class="form-group">
-                                        <div class="input-group mb-3">
-                                            <span class="input-group-text" id="basic-addon1"><i class="fa fa-send"></i></span>
-                                            <input type="text" class="form-control" placeholder="Enter text here..." aria-label="Username" aria-describedby="basic-addon1">
-                                        </div>
+                                @if (!empty($currRoom))
+                                    <div class="chat-history">
+                                        <ul class="m-b-0">
+                                            @foreach($currRoom->messages as $message)
+                                                <li class="clearfix">
+                                                    @if ($message->sender_id === Auth::user()->id)
+                                                        <div class="message-data">
+                                                            <span class="message-data-time">
+                                                                {{ $message->created_at->toFormattedDateString() }}, {{ $message->created_at->toTimeString() }}
+                                                            </span>
+                                                        </div>
+                                                        <div class="message my-message">{{ $message->message }}</div>
+                                                    @else
+                                                        <div class="message-data text-right">
+                                                            <span class="message-data-time">
+                                                                {{ $message->created_at->toFormattedDateString() }}, {{ $message->created_at->toTimeString() }}
+                                                            </span>
+                                                            <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="avatar">
+                                                        </div>
+                                                        <div class="message other-message float-right">{{ $message->message }}</div>
+                                                    @endif
+                                                </li>
+                                            @endforeach
+                                        </ul>
                                     </div>
-                                </div>
+                                @else
+                                    <div style="position: relative; text-align: center; color: #4a5568;">
+                                        <img src="http://127.0.0.1/background.jpeg" alt="background">
+                                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">Please choose a room</div>
+                                    </div>
+                                @endif
+                                @if (!empty($currRoom))
+                                    @if ($isJoin)
+                                        <div class="chat-message clearfix">
+                                            <div class="form-group">
+                                                <div class="input-group mb-3">
+                                                    <span class="input-group-text" id="basic-addon1"><i class="fa fa-send"></i></span>
+                                                    <input type="text" id="chat-message-input" class="form-control" placeholder="Enter text here..." aria-label="Username" aria-describedby="basic-addon1">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <form class="inline-block px-4 py-2 bg-blue-700 rounded-md text-xs text-white hover:bg-blue-500" method="post" action="{{ route('rooms.join', $room->id) }}">
+                                            @csrf
+                                            <button type="submit">JOIN</button>
+                                        </form>
+                                    @endif
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -362,4 +380,90 @@
             </div>
         </div>
     </div>
+
+    <script>
+        const userId = {{ Auth::user()->id }}
+        const roomId = {{ !empty($currRoom) ? $currRoom-> id : 0 }};
+        const chatThread = document.querySelector('#chat-thread');
+        const messageInput = document.querySelector('#chat-message-input');
+
+        const centrifuge = new Centrifuge("ws://" + window.location.host + "/connection/websocket");
+
+        centrifuge.on('connect', function(ctx) {
+            console.log("connected", ctx);
+        });
+
+        centrifuge.on('disconnect', function(ctx) {
+            console.log("disconnected", ctx);
+        });
+
+        centrifuge.on('publish', function(ctx) {
+            const channel = ctx.channel;
+            const payload = JSON.stringify(ctx.data);
+            console.log('Publication from server-side channel', channel, payload);
+
+            if (ctx.data.roomId === roomId) {
+                isSelf = ctx.data.senderId === userId
+                addMessage(ctx.data.text, ctx.data.createdAtFormatted, isSelf)
+            }
+
+            const lastRoomMessageText = document.querySelector('#room-' + roomId + ' .status');
+            const lastRoomMessageDate = document.querySelector('#room-' + roomId + ' .status.date');
+
+            var text = ctx.data.text.substr(0,10) +  ctx.data.text.substr(ctx.data.text.length+1);
+            if (ctx.data.text.length > 10) {
+                text += "..."
+            }
+
+            lastRoomMessageText.innerHTML = text;
+            lastRoomMessageDate.innerHTML = ctx.data.createdAt;
+        });
+
+        centrifuge.connect();
+
+        messageInput.focus();
+        var csrfToken = "{{ csrf_token() }}";
+        messageInput.onkeyup = function(e) {
+            if (e.keyCode === 13) { // enter, return
+                e.preventDefault();
+                const message = messageInput.value;
+                if (!message) {
+                    return;
+                }
+
+                var payload = JSON.stringify({
+                    message: message
+                })
+
+                var xhttp = new XMLHttpRequest();
+                xhttp.open("POST", "/rooms/" + roomId + "/publish")
+                xhttp.setRequestHeader("X-CSRF-TOKEN", csrfToken)
+                xhttp.send(payload);
+
+                messageInput.value = '';
+            }
+        };
+
+        function addMessage(text, date, isSelf) {
+            const chatThreads = document.querySelector('.chat-history ul');
+
+            var data = '<div class="message-data text-right">' +
+                '<span class="message-data-time">' + date + '</span>' +
+                '<img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="avatar">' +
+                '</div>' +
+                '<div class="message other-message float-right">' + text + '</div>'
+
+            if (isSelf) {
+                data = '<div class="message-data">' +
+                    '<span class="message-data-time">' + date + '</span>' +
+                    '</div>' +
+                    '<div class="message my-message">' + text + '</div>'
+            }
+
+            const chatNewThread = document.createElement('li');
+            chatNewThread.className = "clearfix";
+            chatNewThread.innerHTML = data
+            chatThreads.appendChild(chatNewThread)
+        }
+    </script>
 </x-app-layout>

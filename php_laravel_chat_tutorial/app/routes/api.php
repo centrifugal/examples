@@ -24,7 +24,5 @@ Route::group([
     'middleware' => 'auth',
 ], function () {
     Route::post('/centrifugo/connect', [CentrifugoProxyController::class, 'connect']);
-    Route::post('/centrifugo/publish', [CentrifugoProxyController::class, 'publish']);
-    Route::post('/centrifugo/subscribe', [CentrifugoProxyController::class, 'subscribe']);
     Route::post('/rooms/{id}/publish', [RoomController::class, 'publish'])->name('rooms.publish');
 });

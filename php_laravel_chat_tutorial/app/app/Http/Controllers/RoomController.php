@@ -24,23 +24,26 @@ class RoomController extends Controller
 
     public function index()
     {
+        $rooms = Room::with(['users', 'messages' => function ($query) {
+            $query->orderBy('created_at', 'asc');
+        }])->orderBy('created_at', 'desc')->get();
+
         return view('rooms.index', [
-            'rooms' => Room::with('users')->get()
+            'rooms' => $rooms,
         ]);
     }
 
     public function show(int $id)
     {
-        $rooms = Room::with(['users', 'messages' => function ($query) {
+        $rooms = Room::with('users')->orderBy('created_at', 'desc')->get();
+        $room = Room::with(['users', 'messages' => function ($query) {
             $query->orderBy('created_at', 'asc');
-        }])->whereHas('users', function (Builder $query) {
-            $query->where('users_rooms.user_id', Auth::user()->id);
-        })->get();
+        }])->find($id);
 
-        return view('rooms.show', [
+        return view('rooms.index', [
             'rooms' => $rooms,
-            'currRoom' => Room::with(['users', 'messages'])->find($id),
-            'userId' => Auth::user()->id
+            'currRoom' => $room,
+            'isJoin' => $room->users->contains('id', Auth::user()->id),
         ]);
     }
 
@@ -93,7 +96,9 @@ class RoomController extends Controller
             $this->centrifugo->broadcast($channels, [
                 "text" => $message->message,
                 "createdAt" => $message->created_at->toDateTimeString(),
+                "createdAtFormatted" => $message->created_at->toFormattedDateString() . ", " . $message->created_at->toTimeString(),
                 "roomId" => $id,
+                "senderId" => Auth::user()->id,
             ]);
         } catch (Throwable $e) {
             Log::error($e->getMessage());

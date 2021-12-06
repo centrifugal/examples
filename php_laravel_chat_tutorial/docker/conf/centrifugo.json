@@ -8,8 +8,6 @@
     "http://127.0.0.1"
   ],
   "proxy_connect_endpoint": "http://nginx/centrifugo/connect/",
-  "proxy_publish_endpoint": "http://nginx/centrifugo/publish/",
-  "proxy_subscribe_endpoint": "http://nginx/centrifugo/subscribe/",
   "proxy_http_headers": [
     "Cookie"
   ],
@@ -19,12 +17,6 @@
     {
       "name": "personal",
       "presence": true
-    },
-    {
-      "name": "rooms",
-      "publish": true,
-      "proxy_publish": true,
-      "proxy_subscribe": true
     }
   ]
 }
