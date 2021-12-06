@@ -54,14 +54,13 @@
             font-weight: bold;
         }
 
-        .room-list .chat-list img {
-            width: 47px;
-            border-radius: 50%
+        .room-list .chat-list i {
+            font-size: 47px;
+            color: #7cc1b1;
         }
 
-        .room-list img {
+        .room-list i {
             float: left;
-            border-radius: 50%
         }
 
         .room-list .about {
@@ -81,10 +80,10 @@
             height: 80px;
         }
 
-        .chat .chat-header img {
+        .chat .chat-header i {
             float: left;
-            border-radius: 40px;
-            width: 40px
+            font-size: 47px;
+            color: #7cc1b1;
         }
 
         .chat .chat-header .chat-about {
@@ -218,20 +217,14 @@
         }
     </style>
 
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Chat Rooms') }}
-        </h2>
-    </x-slot>
-
-
+    <x-slot name="header"></x-slot>
 
     <div class="container">
 
         <form class="chat-create-form row" method="post" action="{{ route('rooms.store') }}">
             @csrf
             <div class="input-group mb-3">
-                <input type="text" class="form-control" name="name" placeholder="Type a new group name">
+                <input type="text" class="form-control" name="name" placeholder="Type a group name to add">
                 <button class="btn btn-outline-secondary" type="submit">{{ __('Add room') }}</button>
             </div>
         </form>
@@ -243,11 +236,11 @@
                         <ul class="list-unstyled chat-list mt-2 mb-0">
                             @foreach($rooms as $room)
                             <li onclick="location.href='{{ route('rooms.show', $room->id) }}'" id="room-{{ $room->id }}" class="clearfix {{ !empty($currRoom) && $currRoom->id === $room->id ? 'active' : ''}}">
-                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAABmJLR0QA/wD/AP+gvaeTAAAD3ElEQVRoge3a2WudRRjH8U+apaatTVp6o7hGLdEalyKKpVQF8Q9wr3pvsUoQoS6I6I1XXqh4I4J4oYiI+0rrhm3d21pjtVEi7i1KQEujbSU5Xjzzek7qOT3be05ykS+8DGeWZ37zzjszz8wc5pijJXTkaOs4XIjzcCpORh8WpfT9+BPfYQyf4kP8kqOGhjkF9+ELFCo8f6SnUvrnuBcDbdYOVuN1TJYI2o4HsRYr0V+mXH9KW4uHsKOk/CReFb3acgbwSknlY9iAE5uweRLuEJ9cZvfFFJ87HRjGRKpoN67CvBzrmIdrMZrq2I/1Odq3EM8k43/hdnTlWcFhdOMu/J3qfDppaIolYmbJeuGMZg3WwRC+SXVvVX7M1cQifJYMvYPFeairkz68lzR8ooGe6RQzSAFv4qg81dVJLzYlLS+rc1zemQruwNG5S6ufxdgpNG2otdBZOIR9YsGbLZwmZrKDWFFLgY2i5etaKKpRbhba3qiWcU3KOCLGyWyjC7uExtVHyvhsynRdFYObVfadmn02V6n7BsX1pSyLxdjYi54ZbMj7Veqej99wQNGznsaVydBjVQzNBh4XWi/PIkrn5FUp3NRORQ2yMYWZ5mkNGUrhzrbJaZxM41C5xK9Fd3W3TU7j9AitX2URpT3SJ9z0f8oUzGtwl5uRqtkuV+aQ8MT7yjVkSr77i3IU2lFmJBWaSQexVo74ae1N4fHtVNQgmQ/4UxZR2pBtKTy/bXIa55wUjmQRpQ35OIUXtU1O41yWwq3lEhcKN3nczLoo1Xyt+fhd7On/c1FKe2QCL2EprqhirJVUm6WuxjI8L158WVaKaXi32enGdysu3Kuq5PVCynhLi0U1wrDQ9lotmQdEl01geQtF1cug0HQAp9daaL3iTrGvSt520I8vhabb6inYgScUz7R6c5dWOwuShoL47Ot2o3rwVjKwRcxm7aZf7BgL4sRzQaOGehVP30dxbh7qauRsfKu4tjR90tmNR5LBg1p/TNSNu8WgLuBJTfREOa5Jhn/O02gJnbhesRf24cZWVHRsquCDnO0OiGuEH5L9KTyHE+oxUs89x5oUbquQvk6sO7vEnvp7cflZuuNcKoQP4gLhoGb77knhIt0vTt5bRnY6f+lh8V3iPrCSEzghGlQpfTvu0eRVW63X08fgR/wqrp2nUvxyPIqLxcZsOAk6M+Vbkp7O1KBx0VNj4q1/hD3NNKBeHhZv76b0exkeELNYQThyg+0U1AgrhOAJ3Crc52xqLOApFY4uZxtv+/93PYV3cckM6ppGLbPWHrF2jItve4v4s8BoC3XNMcds4V/d6V223MWyRgAAAABJRU5ErkJggg==" alt="avatar">
+                                <i class="fa fa-comments"></i>
                                 <div class="about">
                                     <div class="name">{{ $room->name }}</div>
                                     <span class="user-name">{{ ($room->messages->count() > 0) ? $room->messages->last()->user->name : '' }}</span>
-                                    <span class="status">{{ ($room->messages->count() > 0) ? Str::limit($room->messages->last()->message, 20) : '' }}</span>
+                                    <span class="status">{{ ($room->messages->count() > 0) ? Str::limit($room->messages->last()->message, 15) : '' }}</span>
                                 </div>
                             </li>
                             @endforeach
@@ -258,9 +251,7 @@
                             <div class="row">
                                 <div class="col-lg-6">
                                     @if (!empty($currRoom))
-                                    <a href="javascript:void(0);" data-toggle="modal" data-target="#view_info">
-                                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAABmJLR0QA/wD/AP+gvaeTAAAD3ElEQVRoge3a2WudRRjH8U+apaatTVp6o7hGLdEalyKKpVQF8Q9wr3pvsUoQoS6I6I1XXqh4I4J4oYiI+0rrhm3d21pjtVEi7i1KQEujbSU5Xjzzek7qOT3be05ykS+8DGeWZ37zzjszz8wc5pijJXTkaOs4XIjzcCpORh8WpfT9+BPfYQyf4kP8kqOGhjkF9+ELFCo8f6SnUvrnuBcDbdYOVuN1TJYI2o4HsRYr0V+mXH9KW4uHsKOk/CReFb3acgbwSknlY9iAE5uweRLuEJ9cZvfFFJ87HRjGRKpoN67CvBzrmIdrMZrq2I/1Odq3EM8k43/hdnTlWcFhdOMu/J3qfDppaIolYmbJeuGMZg3WwRC+SXVvVX7M1cQifJYMvYPFeairkz68lzR8ooGe6RQzSAFv4qg81dVJLzYlLS+rc1zemQruwNG5S6ufxdgpNG2otdBZOIR9YsGbLZwmZrKDWFFLgY2i5etaKKpRbhba3qiWcU3KOCLGyWyjC7uExtVHyvhsynRdFYObVfadmn02V6n7BsX1pSyLxdjYi54ZbMj7Veqej99wQNGznsaVydBjVQzNBh4XWi/PIkrn5FUp3NRORQ2yMYWZ5mkNGUrhzrbJaZxM41C5xK9Fd3W3TU7j9AitX2URpT3SJ9z0f8oUzGtwl5uRqtkuV+aQ8MT7yjVkSr77i3IU2lFmJBWaSQexVo74ae1N4fHtVNQgmQ/4UxZR2pBtKTy/bXIa55wUjmQRpQ35OIUXtU1O41yWwq3lEhcKN3nczLoo1Xyt+fhd7On/c1FKe2QCL2EprqhirJVUm6WuxjI8L158WVaKaXi32enGdysu3Kuq5PVCynhLi0U1wrDQ9lotmQdEl01geQtF1cug0HQAp9daaL3iTrGvSt520I8vhabb6inYgScUz7R6c5dWOwuShoL47Ot2o3rwVjKwRcxm7aZf7BgL4sRzQaOGehVP30dxbh7qauRsfKu4tjR90tmNR5LBg1p/TNSNu8WgLuBJTfREOa5Jhn/O02gJnbhesRf24cZWVHRsquCDnO0OiGuEH5L9KTyHE+oxUs89x5oUbquQvk6sO7vEnvp7cflZuuNcKoQP4gLhoGb77knhIt0vTt5bRnY6f+lh8V3iPrCSEzghGlQpfTvu0eRVW63X08fgR/wqrp2nUvxyPIqLxcZsOAk6M+Vbkp7O1KBx0VNj4q1/hD3NNKBeHhZv76b0exkeELNYQThyg+0U1AgrhOAJ3Crc52xqLOApFY4uZxtv+/93PYV3cckM6ppGLbPWHrF2jItve4v4s8BoC3XNMcds4V/d6V223MWyRgAAAABJRU5ErkJggg==" alt="avatar">
-                                    </a>
+                                    <i class="fa fa-comments"></i>
                                     <div class="chat-about">
                                         <h6 class="m-b-0">Room: {{ $currRoom->name }}</h6>
                                         <small>Num participants: {{ $currRoom->users->count() }}</small>
@@ -283,7 +274,7 @@
                                     <div class="message my-message float-right">{{ $message->message }}</div>
                                     @else
                                     <div class="message-data text-left">
-                                        <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="avatar">
+                                        <img src="https://i.pravatar.cc/150?u={{ $message->user->name }}@pravatar.com" alt="avatar">
                                         <span class="message-data-time">
                                             <b>{{ $message->user->name }}</b>, {{ $message->created_at->toFormattedDateString() }}, {{ $message->created_at->toTimeString() }}
                                         </span>
@@ -296,7 +287,7 @@
                                 @endforeach
                             </ul>
                             @else
-                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">This is an example chat application with Laravel and Centrifugo. Login with different accounts, create new rooms, publish messages into rooms and enjoy the instant messaging communication.</div>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">This is an example chat application with Laravel and Centrifugo. Login with different accounts, create new rooms, publish messages into rooms and enjoy an instant communication.</div>
                             @endif
                         </div>
 
@@ -326,93 +317,99 @@
     </div>
 
     <script>
-        const userId = "{{ Auth::user() -> id }}";
-        const roomId = "{{ !empty($currRoom) ? $currRoom -> id : 0 }}";
+        window.addEventListener('load', () => {
+            initApp();
+        })
 
-        const chatHistory = document.querySelector('#chat-history');
-        const messageInput = document.querySelector('#chat-message-input');
+        function initApp() {
+            const userId = "{{ Auth::user() -> id }}";
+            const roomId = "{{ !empty($currRoom) ? $currRoom -> id : 0 }}";
 
-        function scrollToLastMessage() {
-            chatHistory.scrollTop = chatHistory.scrollHeight;
-        }
-        scrollToLastMessage();
+            const chatHistory = document.querySelector('#chat-history');
+            const messageInput = document.querySelector('#chat-message-input');
 
-        const centrifuge = new Centrifuge("ws://" + window.location.host + "/connection/websocket");
-
-        centrifuge.on('connect', function(ctx) {
-            console.log("connected", ctx);
-        });
-
-        centrifuge.on('disconnect', function(ctx) {
-            console.log("disconnected", ctx);
-        });
-
-        centrifuge.on('publish', function(ctx) {
-            if (ctx.data.roomId.toString() === roomId) {
-                isSelf = ctx.data.senderId.toString() === userId;
-                addMessage(ctx.data.text, ctx.data.createdAtFormatted, ctx.data.senderName, isSelf);
-                scrollToLastMessage();
+            function scrollToLastMessage() {
+                chatHistory.scrollTop = chatHistory.scrollHeight;
             }
-            const lastRoomMessageText = document.querySelector('#room-' + ctx.data.roomId + ' .status');
-            const lastRoomMessageUserName = document.querySelector('#room-' + ctx.data.roomId + ' .user-name');
+            scrollToLastMessage();
 
-            var text = ctx.data.text.substr(0, 15) + ctx.data.text.substr(ctx.data.text.length + 1);
-            if (ctx.data.text.length > 15) {
-                text += "..."
-            }
+            const centrifuge = new Centrifuge("ws://" + window.location.host + "/connection/websocket");
 
-            lastRoomMessageText.innerHTML = text;
-            lastRoomMessageUserName.innerHTML = ctx.data.senderName;
-        });
+            centrifuge.on('connect', function(ctx) {
+                console.log("connected", ctx);
+            });
 
-        centrifuge.connect();
+            centrifuge.on('disconnect', function(ctx) {
+                console.log("disconnected", ctx);
+            });
 
-        if (messageInput !== null) {
-            messageInput.focus();
-
-            var csrfToken = "{{ csrf_token() }}";
-            messageInput.onkeyup = function(e) {
-                if (e.keyCode === 13) { // enter, return
-                    e.preventDefault();
-                    const message = messageInput.value;
-                    if (!message) {
-                        return;
-                    }
-
-                    var payload = JSON.stringify({
-                        message: message
-                    })
-
-                    var xhttp = new XMLHttpRequest();
-                    xhttp.open("POST", "/rooms/" + roomId + "/publish")
-                    xhttp.setRequestHeader("X-CSRF-TOKEN", csrfToken)
-                    xhttp.send(payload);
-
-                    messageInput.value = '';
+            centrifuge.on('publish', function(ctx) {
+                if (ctx.data.roomId.toString() === roomId) {
+                    isSelf = ctx.data.senderId.toString() === userId;
+                    addMessage(ctx.data.text, ctx.data.createdAtFormatted, ctx.data.senderName, isSelf);
+                    scrollToLastMessage();
                 }
-            };
-        }
+                const lastRoomMessageText = document.querySelector('#room-' + ctx.data.roomId + ' .status');
+                const lastRoomMessageUserName = document.querySelector('#room-' + ctx.data.roomId + ' .user-name');
 
-        function addMessage(text, date, senderName, isSelf) {
-            const chatThreads = document.querySelector('#chat-history ul');
+                var text = ctx.data.text.substr(0, 15) + ctx.data.text.substr(ctx.data.text.length + 1);
+                if (ctx.data.text.length > 15) {
+                    text += "..."
+                }
 
-            var data = '<div class="message-data text-left">' +
-                '<img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="avatar">' +
-                '<span class="message-data-time"><b>' + senderName + '</b>, ' + date + '</span>' +
-                '</div>' +
-                '<div class="message other-message float-left">' + text + '</div>'
+                lastRoomMessageText.innerHTML = text;
+                lastRoomMessageUserName.innerHTML = ctx.data.senderName;
+            });
 
-            if (isSelf) {
-                data = '<div class="message-data text-right">' +
-                    '<span class="message-data-time">' + date + '</span>' +
-                    '</div>' +
-                    '<div class="message my-message float-right">' + text + '</div>'
+            centrifuge.connect();
+
+            if (messageInput !== null) {
+                messageInput.focus();
+
+                var csrfToken = "{{ csrf_token() }}";
+                messageInput.onkeyup = function(e) {
+                    if (e.keyCode === 13) { // enter, return
+                        e.preventDefault();
+                        const message = messageInput.value;
+                        if (!message) {
+                            return;
+                        }
+
+                        var payload = JSON.stringify({
+                            message: message
+                        })
+
+                        var xhttp = new XMLHttpRequest();
+                        xhttp.open("POST", "/rooms/" + roomId + "/publish")
+                        xhttp.setRequestHeader("X-CSRF-TOKEN", csrfToken)
+                        xhttp.send(payload);
+
+                        messageInput.value = '';
+                    }
+                };
             }
 
-            const chatNewThread = document.createElement('li');
-            chatNewThread.className = "clearfix";
-            chatNewThread.innerHTML = data
-            chatThreads.appendChild(chatNewThread)
+            function addMessage(text, date, senderName, isSelf) {
+                const chatThreads = document.querySelector('#chat-history ul');
+
+                var data = '<div class="message-data text-left">' +
+                    '<img src="https://i.pravatar.cc/150?u=' + senderName + '@pravatar.com" alt="avatar">' +
+                    '<span class="message-data-time"><b>' + senderName + '</b>, ' + date + '</span>' +
+                    '</div>' +
+                    '<div class="message other-message float-left">' + text + '</div>'
+
+                if (isSelf) {
+                    data = '<div class="message-data text-right">' +
+                        '<span class="message-data-time">' + date + '</span>' +
+                        '</div>' +
+                        '<div class="message my-message float-right">' + text + '</div>'
+                }
+
+                const chatNewThread = document.createElement('li');
+                chatNewThread.className = "clearfix";
+                chatNewThread.innerHTML = data
+                chatThreads.appendChild(chatNewThread)
+            }
         }
     </script>
 </x-app-layout>
