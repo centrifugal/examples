@@ -1,0 +1,19 @@
+{
+  "port": 8000,
+  "engine": "memory",
+  "token_hmac_secret_key": "secret",
+  "api_key": "some-key",
+  "allowed_origins": [
+    "http://localhost",
+    "http://127.0.0.1"
+  ],
+  "proxy_connect_endpoint": "http://nginx/centrifugo/connect/",
+  "proxy_http_headers": [
+    "Cookie"
+  ],
+  "namespaces": [
+    {
+      "name": "personal"
+    }
+  ]
+}

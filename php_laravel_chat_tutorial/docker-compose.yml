@@ -1,0 +1,78 @@
+version: '3'
+services:
+  centrifugo:
+    image: centrifugo/centrifugo:v3.0.5
+    container_name: centrifugo
+    volumes:
+      - ./docker/conf/centrifugo.json:/centrifugo/config.json
+    command: centrifugo -c config.json
+    ports:
+      - 8001:8001
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    networks:
+      - app
+
+  pg:
+    image: postgres:13.3-alpine
+    container_name: pg
+    environment:
+      - POSTGRES_DB=app_db
+      - POSTGRES_USER=app_user
+      - POSTGRES_PASSWORD
+      - PAGER=less
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    expose:
+      - "5432"
+    ports:
+      - "5432:5432"
+    volumes:
+      - data:/var/lib/postgresql
+    networks:
+      - app
+
+  app:
+    container_name: app
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    expose:
+      - 9000
+    depends_on:
+      - pg
+      - nginx
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=pg
+      - DB_PORT=5432
+      - DB_DATABASE=app_db
+      - DB_USERNAME=app_user
+      - DB_PASSWORD
+    volumes:
+      - ./app/:/app:delegated
+      - ./docker/entrypoints/app.sh:/entrypoint.sh:ro
+    entrypoint: /entrypoint.sh
+    networks:
+      - app
+
+  nginx:
+    container_name: nginx
+    image: nginx:1.17.2-alpine
+    ports:
+      - "80:80"
+    expose:
+      - 80
+    volumes:
+      - ./app/:/app:delegated
+      - ./docker/conf/nginx.conf:/etc/nginx/conf.d/default.conf
+    restart: on-failure
+    networks:
+      - app
+
+volumes:
+  data:
+
+networks:
+  app:

@@ -61,3 +61,4 @@ target/
 tornado_application/run.sh
 
 .vscode
+.idea
