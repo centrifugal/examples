@@ -26,6 +26,8 @@ class CreateUsersRoomsTable extends Migration
             $table->foreign('user_id')
                 ->references('id')
                 ->on('users');
+
+            $table->unique(['room_id', 'user_id']);
         });
     }
 

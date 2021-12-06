@@ -36,7 +36,7 @@ class RoomController extends Controller
     public function show(int $id)
     {
         $rooms = Room::with('users')->orderBy('created_at', 'desc')->get();
-        $room = Room::with(['users', 'messages' => function ($query) {
+        $room = Room::with(['users', 'messages.user' => function ($query) {
             $query->orderBy('created_at', 'asc');
         }])->find($id);
 
