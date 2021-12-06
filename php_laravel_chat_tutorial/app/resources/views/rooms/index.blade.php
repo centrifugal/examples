@@ -220,7 +220,6 @@
     <x-slot name="header"></x-slot>
 
     <div class="container">
-
         <form class="chat-create-form row" method="post" action="{{ route('rooms.store') }}">
             @csrf
             <div class="input-group mb-3">
@@ -274,7 +273,7 @@
                                     <div class="message my-message float-right">{{ $message->message }}</div>
                                     @else
                                     <div class="message-data text-left">
-                                        <img src="https://i.pravatar.cc/150?u={{ $message->user->name }}@pravatar.com" alt="avatar">
+                                        <img src="https://i.pravatar.cc/50?u={{ $message->user->name }}@pravatar.com" alt="avatar">
                                         <span class="message-data-time">
                                             <b>{{ $message->user->name }}</b>, {{ $message->created_at->toFormattedDateString() }}, {{ $message->created_at->toTimeString() }}
                                         </span>
@@ -287,7 +286,11 @@
                                 @endforeach
                             </ul>
                             @else
-                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">This is an example chat application with Laravel and Centrifugo. Login with different accounts, create new rooms, publish messages into rooms and enjoy an instant communication.</div>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                                This is an example chat application with Laravel and Centrifugo.
+                                Login with different accounts, create new rooms, publish messages into rooms
+                                and enjoy an instant communication.
+                            </div>
                             @endif
                         </div>
 
@@ -333,40 +336,10 @@
             }
             scrollToLastMessage();
 
-            const centrifuge = new Centrifuge("ws://" + window.location.host + "/connection/websocket");
-
-            centrifuge.on('connect', function(ctx) {
-                console.log("connected", ctx);
-            });
-
-            centrifuge.on('disconnect', function(ctx) {
-                console.log("disconnected", ctx);
-            });
-
-            centrifuge.on('publish', function(ctx) {
-                if (ctx.data.roomId.toString() === roomId) {
-                    isSelf = ctx.data.senderId.toString() === userId;
-                    addMessage(ctx.data.text, ctx.data.createdAtFormatted, ctx.data.senderName, isSelf);
-                    scrollToLastMessage();
-                }
-                const lastRoomMessageText = document.querySelector('#room-' + ctx.data.roomId + ' .status');
-                const lastRoomMessageUserName = document.querySelector('#room-' + ctx.data.roomId + ' .user-name');
-
-                var text = ctx.data.text.substr(0, 15) + ctx.data.text.substr(ctx.data.text.length + 1);
-                if (ctx.data.text.length > 15) {
-                    text += "..."
-                }
-
-                lastRoomMessageText.innerHTML = text;
-                lastRoomMessageUserName.innerHTML = ctx.data.senderName;
-            });
-
-            centrifuge.connect();
-
             if (messageInput !== null) {
                 messageInput.focus();
 
-                var csrfToken = "{{ csrf_token() }}";
+                const csrfToken = "{{ csrf_token() }}";
                 messageInput.onkeyup = function(e) {
                     if (e.keyCode === 13) { // enter, return
                         e.preventDefault();
@@ -374,16 +347,12 @@
                         if (!message) {
                             return;
                         }
-
-                        var payload = JSON.stringify({
+                        const xhttp = new XMLHttpRequest();
+                        xhttp.open("POST", "/rooms/" + roomId + "/publish");
+                        xhttp.setRequestHeader("X-CSRF-TOKEN", csrfToken);
+                        xhttp.send(JSON.stringify({
                             message: message
-                        })
-
-                        var xhttp = new XMLHttpRequest();
-                        xhttp.open("POST", "/rooms/" + roomId + "/publish")
-                        xhttp.setRequestHeader("X-CSRF-TOKEN", csrfToken)
-                        xhttp.send(payload);
-
+                        }));
                         messageInput.value = '';
                     }
                 };
@@ -392,8 +361,8 @@
             function addMessage(text, date, senderName, isSelf) {
                 const chatThreads = document.querySelector('#chat-history ul');
 
-                var data = '<div class="message-data text-left">' +
-                    '<img src="https://i.pravatar.cc/150?u=' + senderName + '@pravatar.com" alt="avatar">' +
+                let data = '<div class="message-data text-left">' +
+                    '<img src="https://i.pravatar.cc/50?u=' + senderName + '@pravatar.com" alt="avatar">' +
                     '<span class="message-data-time"><b>' + senderName + '</b>, ' + date + '</span>' +
                     '</div>' +
                     '<div class="message other-message float-left">' + text + '</div>'
@@ -407,9 +376,39 @@
 
                 const chatNewThread = document.createElement('li');
                 chatNewThread.className = "clearfix";
-                chatNewThread.innerHTML = data
-                chatThreads.appendChild(chatNewThread)
+                chatNewThread.innerHTML = data;
+                chatThreads.appendChild(chatNewThread);
             }
+
+            const centrifuge = new Centrifuge("ws://" + window.location.host + "/connection/websocket");
+
+            centrifuge.on('connect', function(ctx) {
+                console.log("connected", ctx);
+            });
+
+            centrifuge.on('disconnect', function(ctx) {
+                console.log("disconnected", ctx);
+            });
+
+            centrifuge.on('publish', function(ctx) {
+                if (ctx.data.roomId.toString() === roomId) {
+                    const isSelf = ctx.data.senderId.toString() === userId;
+                    addMessage(ctx.data.text, ctx.data.createdAtFormatted, ctx.data.senderName, isSelf);
+                    scrollToLastMessage();
+                }
+                const lastRoomMessageText = document.querySelector('#room-' + ctx.data.roomId + ' .status');
+                const lastRoomMessageUserName = document.querySelector('#room-' + ctx.data.roomId + ' .user-name');
+
+                var text = ctx.data.text.substr(0, 15);
+                if (ctx.data.text.length > 15) {
+                    text += "..."
+                }
+
+                lastRoomMessageText.innerHTML = text;
+                lastRoomMessageUserName.innerHTML = ctx.data.senderName;
+            });
+
+            centrifuge.connect();
         }
     </script>
 </x-app-layout>
