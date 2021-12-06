@@ -11,8 +11,7 @@ class CentrifugoProxyController extends Controller
     {
         return new JsonResponse([
             'result' => [
-                'user' => (string) Auth::user()->id,
-                'channels' => ["personal:#".Auth::user()->id],
+                'user' => (string) Auth::user()->id
             ]
         ]);
     }
