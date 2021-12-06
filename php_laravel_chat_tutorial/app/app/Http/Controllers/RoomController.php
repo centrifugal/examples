@@ -71,7 +71,7 @@ class RoomController extends Controller
             Log::error($e->getMessage());
         }
 
-        return redirect('rooms');
+        return redirect()->route('rooms.show', $room->id);
     }
 
     public function publish(int $id, Request $request)
@@ -99,6 +99,7 @@ class RoomController extends Controller
                 "createdAtFormatted" => $message->created_at->toFormattedDateString() . ", " . $message->created_at->toTimeString(),
                 "roomId" => $id,
                 "senderId" => Auth::user()->id,
+                "senderName" => Auth::user()->name,
             ]);
         } catch (Throwable $e) {
             Log::error($e->getMessage());
