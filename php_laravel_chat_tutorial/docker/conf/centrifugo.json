@@ -11,12 +11,9 @@
   "proxy_http_headers": [
     "Cookie"
   ],
-  "user_subscribe_to_personal": true,
-  "user_personal_channel_namespace": "personal",
   "namespaces": [
     {
-      "name": "personal",
-      "presence": true
+      "name": "personal"
     }
   ]
 }
