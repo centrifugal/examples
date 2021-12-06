@@ -280,11 +280,10 @@
                                             <div class="message-data text-left">
                                                 <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="avatar">
                                                 <span class="message-data-time">
-                                                    {{ $message->created_at->toFormattedDateString() }}, {{ $message->created_at->toTimeString() }}
+                                                    <b>{{ $message->user->name }}</b>, {{ $message->created_at->toFormattedDateString() }}, {{ $message->created_at->toTimeString() }}
                                                 </span>
                                             </div>
                                             <div class="message other-message float-left">
-                                                <b>{{ $message->user->name }}</b><br>
                                                 {{ $message->message }}
                                             </div>
                                             @endif
@@ -348,7 +347,7 @@
         centrifuge.on('publish', function(ctx) {
             if (ctx.data.roomId.toString() === roomId) {
                 isSelf = ctx.data.senderId.toString() === userId;
-                addMessage(ctx.data.text, ctx.data.createdAtFormatted, isSelf);
+                addMessage(ctx.data.text, ctx.data.createdAtFormatted, ctx.data.senderName, isSelf);
                 scrollToLastMessage();
             }
             const lastRoomMessageText = document.querySelector('#room-' + ctx.data.roomId + ' .status');
@@ -391,12 +390,12 @@
             };
         }
 
-        function addMessage(text, date, isSelf) {
+        function addMessage(text, date, senderName, isSelf) {
             const chatThreads = document.querySelector('#chat-history ul');
 
             var data = '<div class="message-data text-left">' +
-                '<span class="message-data-time">' + date + '</span>' +
                 '<img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="avatar">' +
+                '<span class="message-data-time"><b>' + senderName + '</b>, ' + date + '</span>' +
                 '</div>' +
                 '<div class="message other-message float-left">' + text + '</div>'
 
