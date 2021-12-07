@@ -1,5 +1,5 @@
-Centrifuge with Laravel
-=======================
+Laravel multi-room chat app with Centrifugo
+===========================================
 
 An example which demonstrates Centrifugo integration with Laravel framework (PHP).
 
