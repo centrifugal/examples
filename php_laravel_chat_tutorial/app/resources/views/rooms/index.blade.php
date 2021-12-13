@@ -1,6 +1,6 @@
 <x-app-layout>
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css">
     <script src="https://cdn.jsdelivr.net/gh/centrifugal/centrifuge-js@2.8.4/dist/centrifuge.min.js"></script>
 
     <style>
@@ -120,6 +120,7 @@
             border-radius: 40px;
             width: 40px;
             display: inline;
+            background: black;
         }
 
         .chat .chat-history .message-data-time {
@@ -273,7 +274,7 @@
                                     <div class="message my-message float-right">{{ $message->message }}</div>
                                     @else
                                     <div class="message-data text-left">
-                                        <img src="https://i.pravatar.cc/50?u={{ $message->user->name }}@pravatar.com" alt="avatar">
+                                        <img src="https://robohash.org/{{ $message->user->name }}" alt="avatar">
                                         <span class="message-data-time">
                                             <b>{{ $message->user->name }}</b>, {{ $message->created_at->toFormattedDateString() }}, {{ $message->created_at->toTimeString() }}
                                         </span>
@@ -362,7 +363,7 @@
                 const chatThreads = document.querySelector('#chat-history ul');
 
                 let data = '<div class="message-data text-left">' +
-                    '<img src="https://i.pravatar.cc/50?u=' + senderName + '@pravatar.com" alt="avatar">' +
+                    '<img src="https://robohash.org/' + senderName + '" alt="avatar">' +
                     '<span class="message-data-time"><b>' + senderName + '</b>, ' + date + '</span>' +
                     '</div>' +
                     '<div class="message other-message float-left">' + text + '</div>'
