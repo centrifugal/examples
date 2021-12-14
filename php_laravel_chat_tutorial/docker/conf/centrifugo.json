@@ -1,7 +1,6 @@
 {
   "port": 8000,
   "engine": "memory",
-  "token_hmac_secret_key": "secret",
   "api_key": "some-key",
   "allowed_origins": [
     "http://localhost",

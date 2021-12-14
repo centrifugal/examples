@@ -326,8 +326,8 @@
         })
 
         function initApp() {
-            const userId = "{{ Auth::user() -> id }}";
-            const roomId = "{{ !empty($currRoom) ? $currRoom -> id : 0 }}";
+            const currentUserId = "{{ Auth::user() -> id }}";
+            const currentRoomId = "{{ !empty($currRoom) ? $currRoom -> id : 0 }}";
 
             const chatHistory = document.querySelector('#chat-history');
             const messageInput = document.querySelector('#chat-message-input');
@@ -349,7 +349,7 @@
                             return;
                         }
                         const xhttp = new XMLHttpRequest();
-                        xhttp.open("POST", "/rooms/" + roomId + "/publish");
+                        xhttp.open("POST", "/rooms/" + currentRoomId + "/publish");
                         xhttp.setRequestHeader("X-CSRF-TOKEN", csrfToken);
                         xhttp.send(JSON.stringify({
                             message: message
@@ -359,17 +359,21 @@
                 };
             }
 
-            function addMessage(text, date, senderName, isSelf) {
+            function addMessage(data) {
                 const chatThreads = document.querySelector('#chat-history ul');
+                const senderName = data.senderName;
+                const text = data.text;
+                const date = data.createdAtFormatted;
+                const isSelf = data.senderId.toString() === currentUserId;
 
-                let data = '<div class="message-data text-left">' +
+                let msg = '<div class="message-data text-left">' +
                     '<img src="https://robohash.org/' + senderName + '" alt="avatar">' +
                     '<span class="message-data-time"><b>' + senderName + '</b>, ' + date + '</span>' +
                     '</div>' +
                     '<div class="message other-message float-left">' + text + '</div>'
 
                 if (isSelf) {
-                    data = '<div class="message-data text-right">' +
+                    msg = '<div class="message-data text-right">' +
                         '<span class="message-data-time">' + date + '</span>' +
                         '</div>' +
                         '<div class="message my-message float-right">' + text + '</div>'
@@ -377,8 +381,19 @@
 
                 const chatNewThread = document.createElement('li');
                 chatNewThread.className = "clearfix";
-                chatNewThread.innerHTML = data;
+                chatNewThread.innerHTML = msg;
                 chatThreads.appendChild(chatNewThread);
+            }
+
+            function addRoomLastMessage(data) {
+                const lastRoomMessageText = document.querySelector('#room-' + data.roomId + ' .status');
+                const lastRoomMessageUserName = document.querySelector('#room-' + data.roomId + ' .user-name');
+                let text = data.text.substr(0, 15);
+                if (data.text.length > 15) {
+                    text += "..."
+                }
+                lastRoomMessageText.innerHTML = text;
+                lastRoomMessageUserName.innerHTML = data.senderName;
             }
 
             const centrifuge = new Centrifuge("ws://" + window.location.host + "/connection/websocket");
@@ -392,21 +407,11 @@
             });
 
             centrifuge.on('publish', function(ctx) {
-                if (ctx.data.roomId.toString() === roomId) {
-                    const isSelf = ctx.data.senderId.toString() === userId;
-                    addMessage(ctx.data.text, ctx.data.createdAtFormatted, ctx.data.senderName, isSelf);
+                if (ctx.data.roomId.toString() === currentRoomId) {
+                    addMessage(ctx.data);
                     scrollToLastMessage();
                 }
-                const lastRoomMessageText = document.querySelector('#room-' + ctx.data.roomId + ' .status');
-                const lastRoomMessageUserName = document.querySelector('#room-' + ctx.data.roomId + ' .user-name');
-
-                var text = ctx.data.text.substr(0, 15);
-                if (ctx.data.text.length > 15) {
-                    text += "..."
-                }
-
-                lastRoomMessageText.innerHTML = text;
-                lastRoomMessageUserName.innerHTML = ctx.data.senderName;
+                addRoomLastMessage(ctx.data);
             });
 
             centrifuge.connect();
