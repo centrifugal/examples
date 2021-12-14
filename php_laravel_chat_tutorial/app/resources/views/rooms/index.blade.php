@@ -321,6 +321,21 @@
     </div>
 
     <script>
+        // helper functions to work with escaping html.
+        const tagsToReplace = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;'
+        };
+
+        function replaceTag(tag) {
+            return tagsToReplace[tag] || tag;
+        }
+
+        function safeTagsReplace(str) {
+            return str.replace(/[&<>]/g, replaceTag);
+        }
+
         window.addEventListener('load', () => {
             initApp();
         })
@@ -361,8 +376,8 @@
 
             function addMessage(data) {
                 const chatThreads = document.querySelector('#chat-history ul');
-                const senderName = data.senderName;
-                const text = data.text;
+                const senderName = safeTagsReplace(data.senderName);
+                const text = safeTagsReplace(data.text);
                 const date = data.createdAtFormatted;
                 const isSelf = data.senderId.toString() === currentUserId;
 
@@ -392,8 +407,8 @@
                 if (data.text.length > 15) {
                     text += "..."
                 }
-                lastRoomMessageText.innerHTML = text;
-                lastRoomMessageUserName.innerHTML = data.senderName;
+                lastRoomMessageText.innerHTML = safeTagsReplace(text);
+                lastRoomMessageUserName.innerHTML = safeTagsReplace(data.senderName);
             }
 
             const centrifuge = new Centrifuge("ws://" + window.location.host + "/connection/websocket");
