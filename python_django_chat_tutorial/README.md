@@ -1,4 +1,4 @@
-A source code for [Django integration tutorial](https://centrifugal.dev/blog/2021/11/05/integrating-with-django).
+A source code for [Django integration tutorial](https://centrifugal.dev/blog/2021/11/04/integrating-with-django-building-chat-application).
 
 To run:
 
