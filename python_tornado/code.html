@@ -1,5 +1,4 @@
-<script type="text/javascript"
-  src="https://cdn.jsdelivr.net/gh/centrifugal/centrifuge-js@2/dist/centrifuge.min.js"></script>
+<script type="text/javascript" src="http://localhost:2000/centrifuge.js"></script>
 <script type="text/javascript">
   // helper functions to work with escaping html.
   var tagsToReplace = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
@@ -14,20 +13,51 @@
     var input = $("#input");
     var container = $('#messages');
 
-    // initialize Centrifuge object first
-    var centrifuge = new Centrifuge(address, {
-      // transports: ["xhr-streaming"],
-      // debug: true,
-      name: "js", // name describes type of client.
-      version: "v0.0.23", // your app-specific version.
-      refreshEndpoint: "/centrifuge/refresh",
-      authEndpoint: "/centrifuge/auth",
-      authHeaders: {
-        "X-Csrf-Token": "csrf"
-      }
-    });
+    function getToken(url, ctx) {
+      return new Promise((resolve, reject) => {
+        fetch(url, {
+          method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(ctx)
+        })
+          .then(res => {
+            if (!res.ok) {
+              throw new Error(`Unexpected status code ${res.statusCode}`);
+            }
+            return res.json();
+          })
+          .then(data => {
+            resolve(data.token);
+          })
+          .catch(err => {
+            reject();
+          });
+      });
+    }
 
-    centrifuge.setToken('{{auth_data["token"]}}');
+    // initialize Centrifuge object first
+    var centrifuge = new Centrifuge(
+      // address + '?cf_protocol_version=v2',
+      [
+        {
+          'transport': 'sockjs',
+          'endpoint': 'http://localhost:8000/connection/sockjs?cf_protocol_version=v2'
+        }
+      ],
+      {
+        token: '{{auth_data["token"]}}',
+        emulationEndpoint: 'http://localhost:8000/emulation',
+        debug: true,
+        name: "js", // name describes type of client.
+        version: "v0.0.23", // your app-specific version.
+        getConnectionToken: function (ctx) {
+          return getToken('/centrifuge/refresh', ctx);
+        },
+        getSubscriptionToken: function (ctx) {
+          return getToken('/centrifuge/subscribe', ctx);
+        },
+      }
+    );
 
     // bind listeners on centrifuge object instance events.
     centrifuge.on('connect', function (ctx) {
@@ -40,27 +70,32 @@
       input.attr("disabled", true);
     });
 
-    centrifuge.on('publish', function (ctx) {
-      drawText('Server-side publication from channel ' + ctx.channel + ": " + JSON.stringify(ctx.data));
+    centrifuge.on('close', function (ctx) {
+      drawText('Closed: ' + ctx.reason);
+      // centrifuge.connect();
     });
 
-    centrifuge.on('join', function (ctx) {
-      drawText('Server-side join from channel ' + ctx.channel + ": " + JSON.stringify(ctx.info));
-    });
+    // centrifuge.on('publish', function (ctx) {
+    //   drawText('Server-side publication from channel ' + ctx.channel + ": " + JSON.stringify(ctx.data));
+    // });
 
-    centrifuge.on('leave', function (ctx) {
-      drawText('Server-side leave from channel ' + ctx.channel + ": " + JSON.stringify(ctx.info));
-    });
+    // centrifuge.on('join', function (ctx) {
+    //   drawText('Server-side join from channel ' + ctx.channel + ": " + JSON.stringify(ctx.info));
+    // });
 
-    centrifuge.on('subscribe', function (ctx) {
-      drawText('Subscribe to server-side channel ' + ctx.channel);
-    });
+    // centrifuge.on('leave', function (ctx) {
+    //   drawText('Server-side leave from channel ' + ctx.channel + ": " + JSON.stringify(ctx.info));
+    // });
+
+    // centrifuge.on('subscribe', function (ctx) {
+    //   drawText('Subscribe to server-side channel ' + ctx.channel);
+    // });
 
     // show how many users currently in channel.
     function showPresence(sub) {
       sub.presence().then(function (message) {
         var count = 0;
-        for (var key in message.presence) {
+        for (var key in message.clients) {
           count++;
         }
         drawText('Now in this room: ' + count + ' clients');
@@ -72,12 +107,17 @@
     // subscribe on channel and bind various event listeners. Actual
     // subscription request will be firer after client will connect to
     // Centrifugo and will be authorized.
-    var sub = centrifuge.subscribe(channel, handleMessage)
+    var sub = centrifuge.newSubscription(channel, { token: '{{auth_data["subscriptionToken"]}}', tokenUniquePerConnection: true });
+
+    sub.on('publication', handleMessage)
       .on("join", handleJoin)
       .on("leave", handleLeave)
-      .on("unsubscribe", handleUnsubscribe)
       .on("subscribe", handleSubscribe)
-      .on("error", handleSubscribeError);
+      .on("unsubscribe", handleUnsubscribe)
+      .on("error", handleSubscribeError)
+      .on('close', handleClose);
+
+    sub.subscribe();
 
     showPresence(sub);
 
@@ -86,9 +126,13 @@
     // defined start subscribing etc.
     centrifuge.connect();
 
+    function handleClose(ctx) {
+      drawText('Subscription closed for channel ' + ctx.channel + ', reason: ' + ctx.reason);
+      // sub.subscribe();
+    }
+
     function handleSubscribe(ctx) {
-      console.log(ctx);
-      drawText('Subscribed on channel ' + ctx.channel + ', recovered: ' + ctx.recovered);
+      drawText('Subscribed on channel ' + ctx.channel);
       if (ctx.isResubscribe) {
         showPresence(sub);
       }
@@ -96,7 +140,6 @@
 
     function handleSubscribeError(err) {
       drawText('Error subscribing on channel ' + err.channel + ': ' + err.code + ' (' + err.message + ')');
-      console.log("subscription failed", err);
     }
 
     function handleMessage(message) {
@@ -128,14 +171,9 @@
       container.prepend($('<li/>').html([(new Date()).toString(), ' ' + text].join(':')));
     }
 
-    // setInterval(function() {
-    //     sub.publish({"input": "1"});
-    // }, 10000);
-
     $('#form').submit(function (event) {
       event.preventDefault();
-      if (centrifuge.isConnected() === false) {
-        alert("not connected to Centrifugo!");
+      if (centrifuge.state() !== centrifuge.STATE_CONNECTED) {
         return;
       }
       sub.publish({ "input": input.val() }).then(function () {
@@ -149,40 +187,40 @@
     // just an example how to subscribe on the same channel after you
     // already subscribed on it before and subscription already in subscribed
     // state. Does not affect chat logic here.
-    setTimeout(function () {
-      var cb = function () {
-        console.log("another subscription message handler");
-      };
+    // setTimeout(function () {
+    //   var cb = function () {
+    //     console.log("another subscription message handler");
+    //   };
 
-      var handleAnotherSubscribe = function (sub) {
-        console.log("ANOTHER SUB READY!", sub.channel);
-      };
+    //   var handleAnotherSubscribe = function (sub) {
+    //     console.log("ANOTHER SUB READY!", sub.channel);
+    //   };
 
-      var handleAnotherError = function (err) {
-        console.log("ANOTHER SUB FAILED", err);
-      };
+    //   var handleAnotherError = function (err) {
+    //     console.log("ANOTHER SUB FAILED", err);
+    //   };
 
-      sub = centrifuge.subscribe(channel, cb);
-      sub.on("subscribe", handleAnotherSubscribe).on("error", handleAnotherError);
-      // use ready method to call subscribe and subscribe error events
-      // if subscription already subscribed (or subscription already failed).
-      sub.ready(handleAnotherSubscribe, handleAnotherError);
-    }, 1000);
+    //   sub = centrifuge.subscribe(channel, cb);
+    //   sub.on("subscribe", handleAnotherSubscribe).on("error", handleAnotherError);
+    //   // use ready method to call subscribe and subscribe error events
+    //   // if subscription already subscribed (or subscription already failed).
+    //   sub.ready(handleAnotherSubscribe, handleAnotherError);
+    // }, 1000);
 
     // just an example how to subscribe on more channels and use message batching
     // to send all subscription commands in one request. Does not affect chat
     // logic here.
-    setTimeout(function () {
-      centrifuge.startBatching();
-      var channels = ["test1", "test2", "test3"];
-      for (var i in channels) {
-        var ch = channels[i];
-        centrifuge.subscribe(ch, function (message) {
-          console.log("Got message from channel " + message.channel);
-        });
-      }
-      centrifuge.stopBatching(true);
-    }, 3000);
+    // setTimeout(function () {
+    //   centrifuge.startBatching();
+    //   var channels = ["test1", "test2", "test3"];
+    //   for (var i in channels) {
+    //     var ch = channels[i];
+    //     centrifuge.subscribe(ch, function (message) {
+    //       console.log("Got message from channel " + message.channel);
+    //     });
+    //   }
+    //   centrifuge.stopBatching(true);
+    // }, 3000);
 
   });
 </script>

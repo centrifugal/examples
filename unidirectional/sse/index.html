@@ -21,9 +21,10 @@
 
         let url = new URL('http://localhost:8000/connection/uni_sse');
         url.searchParams.append("cf_connect", JSON.stringify({
-          'token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNjI5Mjg1MTk2fQ.Wo8VhETRg7ckExRTjCSGABMJGhpFTyGTqsOljhZjQfY',
+          'token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIiLCJleHAiOjE2NDI4MjczNjN9.L_Dd8qNbhI-QohB-rULw6pgDUL90mVhkVLwX1nxXaBI',
           'subs': { 'a': {}, 'b': {}, 'c': {} }
         }));
+        url.searchParams.append("cf_protocol_version", "v2");
 
         eventSource = new EventSource(url);
 

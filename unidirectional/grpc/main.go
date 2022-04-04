@@ -11,6 +11,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -91,7 +92,13 @@ func main() {
 	for {
 		time.Sleep(time.Duration(numFailureAttempts) * time.Second)
 		log.Println("establishing a unidirectional stream")
-		stream, err := client.Consume(context.Background(), &unistream.ConnectRequest{})
+
+		ctx := metadata.NewOutgoingContext(
+			context.Background(),
+			metadata.Pairs("x-cf-protocol-version", "v1"),
+		)
+
+		stream, err := client.Consume(ctx, &unistream.ConnectRequest{})
 		if err != nil {
 			log.Printf("error establishing stream: %v", err)
 			numFailureAttempts++

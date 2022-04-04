@@ -42,13 +42,29 @@ class IndexHandler(tornado.web.RequestHandler):
 
 
 def get_connection_token():
-    token = jwt.encode({
+    return jwt.encode({
         "sub": USER_ID,
         "info": INFO,
-        "exp": int(time.time()) + 10,
-        "iat": int(time.time())
-    }, key=options.secret)
-    return token.decode()
+        # "exp": int(time.time()) + 20,
+        "iat": int(time.time()),
+        "meta": {
+            "roles": ["admin"],
+            "env": "prod",
+        },
+    }, key=options.secret).decode()
+
+
+def get_subscription_token(channel, client=''):
+    claims = {
+        "channel": channel,
+        "info": {
+            'extra': 'extra for ' + channel
+        },
+        # "exp": int(time.time()) + 20
+    }
+    if client:
+        claims["client"] = client
+    return jwt.encode(claims, key=options.secret).decode()
 
 
 class SockjsHandler(tornado.web.RequestHandler):
@@ -60,7 +76,8 @@ class SockjsHandler(tornado.web.RequestHandler):
         self.render(
             "index_sockjs.html",
             auth_data={
-                'token': get_connection_token()
+                'token': get_connection_token(),
+                'subscriptionToken': get_subscription_token("$chat:index")
             },
             centrifuge_address=options.centrifuge
         )
@@ -75,7 +92,8 @@ class WebsocketHandler(tornado.web.RequestHandler):
         self.render(
             "index_websocket.html",
             auth_data={
-                'token': get_connection_token()
+                'token': get_connection_token(),
+                'subscriptionToken': get_subscription_token("$chat:index")
             },
             centrifuge_address=options.centrifuge
         )
@@ -96,31 +114,16 @@ class CentrifugeSubscribeHandler(tornado.web.RequestHandler):
             raise tornado.web.HTTPError(403)
 
         client = data.get("client", "")
-        channels = data.get("channels", [])
+        channel = data.get("channel", "")
 
         logging.info("{0} wants to subscribe on {1}".format(
-            client, ", ".join(channels)))
-
-        channel_data = []
-
-        for channel in channels:
-            channel_data.append({
-                "channel": channel,
-                "token": jwt.encode({
-                    "client": client,
-                    "channel": channel,
-                    "info": {
-                        'extra': 'extra for ' + channel
-                    },
-                    "exp": int(time.time()) + 10
-                }, key=options.secret).decode()
-            })
+            client, channel))
 
         # but here we allow to join any private channel and return additional
         # JSON info specific for channel
         self.set_header('Content-Type', 'application/json; charset="utf-8"')
         self.write(json.dumps({
-            "channels": channel_data
+            "token": get_subscription_token(channel)
         }))
 
 
@@ -133,7 +136,7 @@ class CentrifugeRefreshHandler(tornado.web.RequestHandler):
         pass
 
     def post(self):
-        #raise tornado.web.HTTPError(403)
+        # raise tornado.web.HTTPError(403)
         logging.info("client wants to refresh its connection parameters")
         self.set_header('Content-Type', 'application/json; charset="utf-8"')
         self.write(json.dumps({
@@ -152,7 +155,7 @@ class CentrifugoConnectHandler(tornado.web.RequestHandler):
         self.set_header('Content-Type', 'application/json; charset="utf-8"')
         result = {
             'user': '56',
-            'expire_at': int(time.time()) + 10,
+            # 'expire_at': int(time.time()) + 10,
         }
         try:
             connectRequest = json.loads(self.request.body)
