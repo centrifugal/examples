@@ -45,7 +45,7 @@ def get_connection_token():
     return jwt.encode({
         "sub": USER_ID,
         "info": INFO,
-        # "exp": int(time.time()) + 20,
+        "exp": int(time.time()) + 10,
         "iat": int(time.time()),
         "meta": {
             "roles": ["admin"],
@@ -60,7 +60,7 @@ def get_subscription_token(channel, client=''):
         "info": {
             'extra': 'extra for ' + channel
         },
-        # "exp": int(time.time()) + 20
+        "exp": int(time.time()) + 5
     }
     if client:
         claims["client"] = client
