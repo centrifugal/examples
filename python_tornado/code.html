@@ -37,13 +37,13 @@
 
     // initialize Centrifuge object first
     const centrifuge = new Centrifuge(
-      // address + '?cf_protocol_version=v2',
-      [
-        {
-          'transport': 'websocket',
-          'endpoint': 'ws://localhost:8000/connection/websocket?cf_protocol_version=v2'
-        }
-      ],
+      address + '?cf_protocol_version=v2',
+      // [
+      //   {
+      //     'transport': 'websocket',
+      //     'endpoint': 'ws://localhost:8000/connection/websocket?cf_protocol_version=v2'
+      //   }
+      // ],
       {
         token: '{{auth_data["token"]}}',
         emulationEndpoint: 'http://localhost:8000/emulation',
