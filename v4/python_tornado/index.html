@@ -18,7 +18,8 @@
   <script type="text/javascript">
     var address = '{{protocol}}://{{centrifuge_address}}/connection/websocket';
   </script>
-  <script type="text/javascript" src="http://localhost:2000/centrifuge.js"></script>
+  <script type="text/javascript"
+    src="https://cdnjs.cloudflare.com/ajax/libs/centrifuge/3.0.0-beta.0/centrifuge.js"></script>
   <script type="text/javascript">
     // helper functions to work with escaping html.
     const tagsToReplace = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
@@ -63,7 +64,7 @@
         //   },
         //   {
         //     'transport': 'http_stream',
-        //     'endpoint': 'https://localhost:8000/connection/http_stream'
+        //     'endpoint': 'http://localhost:8000/connection/http_stream'
         //   }
         // ],
         {
