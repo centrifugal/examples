@@ -1,7 +1,6 @@
-Centrifuge client's application example
-=======================================
+This example demonstrates integration of Centrifugo with Tornado server (Python).
 
-First, run Centrifuge with config:
+First, run Centrifugo with config:
 
 ```json
 {
@@ -10,20 +9,20 @@ First, run Centrifuge with config:
   "namespaces": [
     {
       "name": "chat",
-      "publish": true,
       "presence": true,
       "join_leave": true,
       "history_size": 10,
-      "history_ttl": "30s"
+      "history_ttl": "30s",
+      "allow_publish_for_subscriber": true,
     }
   ]
 }
 ```
 
-and then run this app with correct Centrifuge address and secret key:
+and then run this app with correct Centrifugo address and secret key:
 
 ```bash
 python main.py --port=3000 --centrifuge=localhost:8000 --secret=secret
 ```
 
-Then visit `http://localhost:3000` and select SockJS or pure websocket example.
+Then visit `http://localhost:3000`.
