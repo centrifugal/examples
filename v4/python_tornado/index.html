@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Centrifugo example</title>
+  <style type="text/css">
+    input[type="text"] {
+      width: 300px;
+    }
+
+    .muted {
+      color: #CCCCCC;
+      font-size: 10px;
+    }
+  </style>
+  {% set protocol = "ws" %}
+  <script type="text/javascript">
+    var address = '{{protocol}}://{{centrifuge_address}}/connection/websocket';
+  </script>
+  <script type="text/javascript" src="http://localhost:2000/centrifuge.js"></script>
+  <script type="text/javascript">
+    // helper functions to work with escaping html.
+    const tagsToReplace = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
+    function replaceTag(tag) { return tagsToReplace[tag] || tag; }
+    function safeTagsReplace(str) { return str.replace(/[&<>]/g, replaceTag); }
+
+    const channel = "chat:index";
+
+    window.addEventListener('load', function () {
+      const input = document.getElementById("input");
+      const container = document.getElementById('messages');
+
+      function getToken(url, ctx) {
+        return new Promise((resolve, reject) => {
+          fetch(url, {
+            method: 'POST',
+            headers: new Headers({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(ctx)
+          })
+            .then(res => {
+              if (!res.ok) {
+                throw new Error(`unexpected status code ${res.status}`);
+              }
+              return res.json();
+            })
+            .then(data => {
+              resolve(data.token);
+            })
+            .catch(err => {
+              reject(err);
+            });
+        });
+      }
+
+      // initialize Centrifuge object first
+      const centrifuge = new Centrifuge(
+        address,
+        // [
+        //   {
+        //     'transport': 'websocket',
+        //     'endpoint': 'ws://localhost:8000/connection/websocket'
+        //   },
+        //   {
+        //     'transport': 'http_stream',
+        //     'endpoint': 'https://localhost:8000/connection/http_stream'
+        //   }
+        // ],
+        {
+          token: '{{auth_data["token"]}}',
+          getToken: function (ctx) {
+            return getToken('/centrifuge/refresh', ctx);
+          },
+          emulationEndpoint: 'https://localhost:8000/emulation',
+          debug: true,
+          name: "js", // name describes type of client.
+          version: "v0.0.23", // your app-specific version.
+        }
+      );
+
+      // bind listeners on centrifuge object instance events.
+      centrifuge.on('connected', function (ctx) {
+        drawText('Connected with client ID ' + ctx.client + ' over ' + ctx.transport);
+        input.removeAttribute('disabled');
+      });
+
+      // bind listeners on centrifuge object instance events.
+      centrifuge.on('connecting', function (ctx) {
+        drawText('Connecting to server: ' + ctx.reason);
+        input.setAttribute('disabled', 'true');
+      });
+
+      centrifuge.on('disconnected', function (ctx) {
+        drawText('Disconnected: ' + ctx.reason + (ctx.reconnect ? ", will try to reconnect" : ", won't try to reconnect"));
+        input.setAttribute('disabled', 'true');
+      });
+
+      centrifuge.on('error', function (ctx) {
+        drawText('Client error: ' + JSON.stringify(ctx));
+      });
+
+      centrifuge.on('publication', function (ctx) {
+        drawText('Server-side publication from channel ' + ctx.channel + ": " + JSON.stringify(ctx.data));
+      });
+
+      centrifuge.on('join', function (ctx) {
+        drawText('Server-side join from channel ' + ctx.channel + ": " + JSON.stringify(ctx.info));
+      });
+
+      centrifuge.on('leave', function (ctx) {
+        drawText('Server-side leave from channel ' + ctx.channel + ": " + JSON.stringify(ctx.info));
+      });
+
+      centrifuge.on('subscribed', function (ctx) {
+        drawText('Subscribe to server-side channel ' + ctx.channel);
+      });
+
+      centrifuge.on('subscribing', function (ctx) {
+        drawText('Subscribing to server-side channel ' + ctx.channel);
+      });
+
+      centrifuge.on('unsubscribed', function (ctx) {
+        drawText('Unsubscribed from server-side channel ' + ctx.channel);
+      });
+
+      // show how many users currently in channel.
+      function showPresence(sub) {
+        sub.presence().then(function (ctx) {
+          var count = 0;
+          for (var key in ctx.clients) {
+            count++;
+          }
+          drawText('Now in this room: ' + count + ' clients');
+        }, function (err) {
+          drawText('Presence error, code: ' + err.code + ', reason: ' + err.message);
+        });
+      }
+
+      // subscribe on channel and bind various event listeners. Actual
+      // subscription request will be firer after client will connect to
+      // Centrifugo and will be authorized.
+      var sub = centrifuge.newSubscription(channel, {
+        token: '{{auth_data["subscriptionToken"]}}',
+        getToken: function (ctx) {
+          return getToken('/centrifuge/subscribe', ctx);
+        },
+      });
+
+      sub.on('publication', handleMessage)
+        .on("join", handleJoin)
+        .on("leave", handleLeave)
+        .on("subscribed", handleSubscribed)
+        .on("subscribing", handleSubscribing)
+        .on("unsubscribed", handleUnsubscribed)
+        .on("error", handleSubscriptionError)
+
+      sub.subscribe();
+
+      // Trigger actual connection establishing with Centrifugo server.
+      // At this moment actual client work starts - i.e. subscriptions
+      // defined start subscribing etc.
+      centrifuge.connect();
+
+      function handleSubscribing(ctx) {
+        drawText('Subscribing on channel ' + ctx.channel + ', reason: ' + ctx.reason);
+      }
+
+      function handleSubscribed(ctx) {
+        drawText('Subscribed on channel ' + ctx.channel);
+        showPresence(sub);
+      }
+
+      function handleUnsubscribed(ctx) {
+        drawText('Unsubscribed from channel ' + this.channel + ', reason: ' + ctx.reason);
+      }
+
+      function handleSubscriptionError(ctx) {
+        drawText('Subscription error in channel ' + ctx.channel + ': ' + ctx.error.code + ' (' + ctx.error.message + ')');
+      }
+
+      function handleMessage(message) {
+        console.log("new message received", message);
+        var clientID;
+        if ("info" in message) {
+          clientID = message["info"]["client"];
+        } else {
+          clientID = null;
+        }
+        var inputText = message.data["input"].toString();
+        var text = safeTagsReplace(inputText) + ' <span class="muted">from ' + clientID + '</span>';
+        drawText(text);
+      }
+
+      function handleJoin(message) {
+        drawText('Client joined channel ' + this.channel + ' (uid ' + message.info["client"] + ', user ' + message.info["user"] + ')');
+      }
+
+      function handleLeave(message) {
+        drawText('Client left channel ' + this.channel + ' (uid ' + message.info["client"] + ', user ' + message.info["user"] + ')');
+      }
+
+      function drawText(text) {
+        let e = document.createElement('li');
+        e.innerHTML = [(new Date()).toString(), ' ' + text].join(':');
+        container.insertBefore(e, container.firstChild);
+      }
+
+      document.getElementById('form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        sub.publish({ "input": input.value }).then(function () {
+          drawText("Successfully published to channel");
+        }, function (err) {
+          drawText("Publish error: " + JSON.stringify(err));
+        });
+        input.value = '';
+      });
+    });
+  </script>
+</head>
+
+<body>
+  <form id="form">
+    <input type="text" id="input" autocomplete="off" />
+    <input type="submit" id="submit" value="»">
+  </form>
+  <ul id="messages"></ul>
+</body>
+
+</html>
