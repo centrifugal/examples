@@ -26,3 +26,11 @@ python main.py --port=3000 --centrifuge=localhost:8000 --secret=secret
 ```
 
 Then visit `http://localhost:3000`.
+
+To install dependencies:
+
+```
+python3 -m venv env
+. env/bin/activate
+pip install -r requirements.txt
+```
