@@ -5,7 +5,6 @@ First, run Centrifugo with the config like:
 ```json
 {
   "token_hmac_secret_key": "keep-it-secret",
-  "api_key": "keep-it-secret",
   "uni_grpc": true,
   "grpc_api": true
 }

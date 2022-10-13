@@ -86,7 +86,7 @@ func main() {
 		"sub":      "example_user",
 		"channels": []string{"test_channel"},
 	})
-	tokenString, err := token.SignedString([]byte("secret"))
+	tokenString, err := token.SignedString([]byte("keep-it-secret"))
 	if err != nil {
 		log.Fatal(err)
 	}
