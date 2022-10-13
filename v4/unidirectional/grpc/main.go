@@ -67,7 +67,13 @@ func getChannels(client apiproto.CentrifugoApiClient) (map[string]*apiproto.Chan
 
 func askChannels(client apiproto.CentrifugoApiClient) {
 	for {
-		time.Sleep(time.Second)
+		channels, err := getChannels(client)
+		if err != nil {
+			log.Printf("Err getting channels: %v", err)
+		} else {
+			fmt.Println(channels)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 
@@ -87,7 +93,7 @@ func publishChannels(client apiproto.CentrifugoApiClient) {
 				fmt.Println("OK published")
 			}
 		}
-		time.Sleep(time.Second)
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 
