@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"github.com/centrifugal/examples/unidirectional/grpc/apiproto"
 	"github.com/centrifugal/examples/unidirectional/grpc/unistream"
 
+	"github.com/golang-jwt/jwt"
 	"google.golang.org/grpc"
 )
 
@@ -19,7 +21,6 @@ var (
 )
 
 func handlePush(push *unistream.Push) {
-	log.Printf("push received (type %d, channel %s, data %s", push.Type, push.Channel, fmt.Sprintf("%#v", string(push.Data)))
 	if push.Connect != nil {
 		log.Printf("connected to a server with ID: %s", push.Connect.Client)
 	} else if push.Pub != nil {
@@ -29,7 +30,7 @@ func handlePush(push *unistream.Push) {
 	} else if push.Leave != nil {
 		log.Printf("Leave in channel: %s (%s)", push.Channel, push.Leave.Info.Client)
 	} else {
-		log.Println("push type handling not implemented")
+		log.Printf("unimplemented push: %#v", push)
 	}
 }
 
@@ -52,36 +53,14 @@ func getApiClient() (apiproto.CentrifugoApiClient, func()) {
 	return client, func() { conn.Close() }
 }
 
-func getChannels(client apiproto.CentrifugoApiClient) (map[string]*apiproto.ChannelInfo, error) {
-	resp, err := client.Channels(context.Background(), &apiproto.ChannelsRequest{})
-	if err != nil {
-		return nil, fmt.Errorf("Transport level error: %v", err)
-	}
-	if resp.GetError() != nil {
-		respError := resp.GetError()
-		return nil, fmt.Errorf("Error %d (%s)", respError.Code, respError.Message)
-	} else {
-		return resp.Result.Channels, nil
-	}
-}
-
-func askChannels(client apiproto.CentrifugoApiClient) {
+func publishChannel(client apiproto.CentrifugoApiClient) {
 	for {
-		channels, err := getChannels(client)
-		if err != nil {
-			log.Printf("Err getting channels: %v", err)
-		} else {
-			fmt.Println(channels)
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-}
-
-func publishChannels(client apiproto.CentrifugoApiClient) {
-	for {
+		data, _ := json.Marshal(map[string]string{
+			"input": fmt.Sprintf("test_%d", time.Now().Unix()),
+		})
 		resp, err := client.Publish(context.Background(), &apiproto.PublishRequest{
-			Channel: "chat:index",
-			Data:    []byte(`{"input": "test"}`),
+			Channel: "test_channel",
+			Data:    data,
 		})
 		if err != nil {
 			log.Printf("Transport level error: %v", err)
@@ -90,21 +69,32 @@ func publishChannels(client apiproto.CentrifugoApiClient) {
 				respError := resp.GetError()
 				log.Printf("Error %d (%s)", respError.Code, respError.Message)
 			} else {
-				fmt.Println("OK published")
+				fmt.Println("Publish OK")
 			}
 		}
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(1000 * time.Millisecond)
 	}
 }
 
 func main() {
 	flag.Parse()
 
+	// NOTE, that you should never reveal token secret key to your users!
+	// It should only be known by your app backend and Centrifugo.
+	// In real app you may get the connection token from the outside of the program.
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":      "example_user",
+		"channels": []string{"test_channel"},
+	})
+	tokenString, err := token.SignedString([]byte("secret"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	apiClient, cancel := getApiClient()
 	defer cancel()
 
-	go publishChannels(apiClient)
-	go askChannels(apiClient)
+	go publishChannel(apiClient)
 
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithInsecure())
@@ -114,25 +104,15 @@ func main() {
 		log.Fatalf("fail to dial: %v", err)
 	}
 	defer func() { _ = conn.Close() }()
+
 	client := unistream.NewCentrifugoUniStreamClient(conn)
 
 	numFailureAttempts := 0
 	for {
 		time.Sleep(time.Duration(numFailureAttempts) * time.Second)
 		log.Println("establishing a unidirectional stream")
-		channels, err := getChannels(apiClient)
-		if err != nil {
-			log.Fatal(err)
-		}
-		subs := map[string]*unistream.SubscribeRequest{}
-		for ch := range channels {
-			subs[ch] = &unistream.SubscribeRequest{}
-		}
-		subs["chat:index"] = &unistream.SubscribeRequest{}
-		fmt.Println(subs)
 		stream, err := client.Consume(context.Background(), &unistream.ConnectRequest{
-			Token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTY2NjI1OTIyMSwiaWF0IjoxNjY1NjU0NDIxfQ.a0JUKvuAXY7l0qMgeZKqWZagSYF_rP1rh8FoLNsSdvQ",
-			Subs:  subs,
+			Token: tokenString,
 		})
 		if err != nil {
 			log.Printf("error establishing stream: %v", err)
