@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	_ "net/http/pprof"
-
 	"github.com/centrifugal/gocent/v3"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
@@ -54,9 +52,14 @@ func handleRPC(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonData)
 
 	go func() {
+		// Sleep for random time emulating long work.
 		time.Sleep(time.Duration(rand.Intn(3000)) * time.Millisecond)
+
+		// Then publish to Centrifugo channel.
+		// TODO: Centrifugo API client must be initialized once on start.
 		cent := gocent.New(gocent.Config{
 			Addr: "http://localhost:8000/api",
+			Key:  "keep-it-secret",
 		})
 		_, err := cent.Publish(context.Background(), uniqueChannel, []byte(`{"result": "result from `+uniqueChannel+`"}`))
 		if err != nil {

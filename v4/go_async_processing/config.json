@@ -1,11 +1,11 @@
 {
     "token_hmac_secret_key": "keep-it-secret",
+    "api_key": "keep-it-secret",
     "allowed_origins": [
         "http://localhost:3000"
     ],
     "proxy_rpc_endpoint": "http://localhost:3000/rpc",
     "proxy_connect_endpoint": "http://localhost:3000/connect",
-    "api_insecure": true,
     "history_size": 1,
     "history_ttl": "60s",
     "history_meta_ttl": "600s",
