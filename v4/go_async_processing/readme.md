@@ -6,7 +6,7 @@ I.e. step by step:
 
 1. Client sends RPC to the server (may be a simple AJAX request to the backend)
 2. Backend generates unique channel and returns it to a client together with subscription token valid for some time
-3. Client subscribes to a channel and waits for incoming message. It does this with recovery - so that message in channel is guaranteed to be received as soon as it was published to Centrifugo channel (thus avoiding races between publish and subscribe). 
+3. Client subscribes to a channel and waits for incoming message. It does this with recovery - so that message in channel is guaranteed to be received as soon as it was published to Centrifugo channel (thus avoiding races between publish and subscribe). Note, that we are using empty epoch value `""` here – so that Centrifugo does not check stream epochs upon recovery. This is fine since we are using unique channels here which can be only created once.
 4. Client unsuscribes from a channel upon getting result to free resources, history entries will soon expire
 
 In Centrifugo v4 `history_meta_ttl` sets a global history meta information expiration time - i.e. for all namespaces. Probably in the future releases we will let configure `history_meta_ttl` per channel namespace.
