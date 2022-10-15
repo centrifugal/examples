@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title></title>
+    <script type="text/javascript" src="https://unpkg.com/centrifuge@3.0.1/dist/centrifuge.js"></script>
+    <script type="text/javascript">
+        window.addEventListener('load', function () {
+            const btn = document.getElementById("btn");
+            const container = document.getElementById('messages');
+
+            const centrifuge = new Centrifuge('ws://localhost:8000/connection/websocket', {});
+
+            centrifuge.on('connecting', function (ctx) {
+                drawText('Connecting: ' + ctx.reason);
+            });
+
+            centrifuge.on('disconnected', function (ctx) {
+                drawText('Disconnected: ' + ctx.reason);
+            });
+
+            centrifuge.on('connected', function (ctx) {
+                drawText('Connected with client ID ' + ctx.client + ' over ' + ctx.transport);
+            });
+
+            // Trigger actual connection establishing with a server.
+            // At this moment actual client work starts - i.e. subscriptions
+            // defined start subscribing etc.
+            centrifuge.connect();
+
+            function drawText(text) {
+                let e = document.createElement('li');
+                e.innerHTML = [(new Date()).toString(), ' ' + text].join(':');
+                container.insertBefore(e, container.firstChild);
+            }
+
+            btn.addEventListener('click', async function (event) {
+                event.preventDefault();
+                const result = await centrifuge.rpc('click', {});
+                drawText("Got channel: " + result.data.channel);
+
+                const channel = result.data.channel;
+                const sub = centrifuge.newSubscription(channel, {
+                    token: result.data.token,
+                    since: {
+                        offset: 0,
+                        epoch: ''
+                    }
+                });
+                sub.once("publication", function (ctx) {
+                    console.log(ctx.data);
+                    drawText("Got data: " + ctx.data.result);
+                    centrifuge.removeSubscription(sub);
+                }).subscribe();
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <button id="btn">Click me for async action</button>
+    <div id="messages"></div>
+</body>
+
+</html>
