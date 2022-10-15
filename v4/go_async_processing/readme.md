@@ -1,5 +1,7 @@
 A concept how to consume async request results from the backend using Centrifugo (using Centrifugo subscriptions and history with recovery). We can initiate long work, return unique channel to consume result from, subscribe on it with recovery to avoid missing the result, then unsubscribe from it upon receiving the result of operation to free resources.
 
+> This may be a bit esoteric approach, you can also solve this by using one unique channel per browser tab, and push results to a client over it. If you need to notify a user (not a particular client) – then you better publish async results into a user channel – so all browser tabs subscribed to a channel will receive async results. 
+
 I.e. step by step:
 
 1. Client sends RPC to the server (may be a simple AJAX request to the backend)
