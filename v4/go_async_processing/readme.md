@@ -5,7 +5,7 @@ A concept how to consume async request results from the backend using Centrifugo
 3. Client subscribes to a channel and waits for incoming message. It does this with recovery - so that message in channel is guaranteed to be received as soon as it was published to Centrifugo channel (thus avoiding races between publish and subscribe). 
 4. Client unsuscribes from a channel upon getting result to free resources
 
-Looks like we should make `history_meta_ttl` configurable per namespace in the future, for now `history_meta_ttl` sets a global history meta information expiration time - i.e. for all namespaces.
+In Centrifugo v4 `history_meta_ttl` sets a global history meta information expiration time - i.e. for all namespaces. Probably in the future releases we will let configure `history_meta_ttl` per channel namespace.
 
 Run example
 ===========
