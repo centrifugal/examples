@@ -1,4 +1,4 @@
-A concept how to consume async request results from the backend using Centrifugo (using Centrifugo subscriptions and history with recovery). We can initiate long work, return unique channel to consume result from (with recovery to avoid missing the result), then unsubscribe from it upon receiving the result of operation.
+A concept how to consume async request results from the backend using Centrifugo (using Centrifugo subscriptions and history with recovery). We can initiate long work, return unique channel to consume result from, subscribe on it with recovery to avoid missing the result, then unsubscribe from it upon receiving the result of operation to free resources.
 
 1. Client sends RPC to the server (may be a simple AJAX request to the backend)
 2. Backend generates unique channel and returns it to a client together with subscription token valid for some time
