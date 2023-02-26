@@ -202,9 +202,8 @@ class CentrifugoConnectHandler(tornado.web.RequestHandler):
         logging.info(data)
         self.write(data)
 
+
 # Refresh proxy example handler.
-
-
 class CentrifugoRefreshHandler(tornado.web.RequestHandler):
 
     def check_xsrf_cookie(self):
@@ -223,6 +222,25 @@ class CentrifugoRefreshHandler(tornado.web.RequestHandler):
                     #     'allow': ['prs', 'pub', 'sub']
                     # }
                 ]
+            }
+        })
+        logging.info(data)
+        self.write(data)
+
+
+# Sub refresh proxy example handler.
+class CentrifugoSubRefreshHandler(tornado.web.RequestHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    def post(self):
+        logging.info(
+            f"sub refresh proxy handler called: {self.request.body}, headers: {self.request.headers}")
+        self.set_header('Content-Type', 'application/json; charset="utf-8"')
+        data = json.dumps({
+            'result': {
+                'expire_at': int(time.time()) + 60,
             }
         })
         logging.info(data)
@@ -303,6 +321,7 @@ def run():
             (r'/centrifugo/rpc', CentrifugoRPCHandler),
             (r'/centrifugo/subscribe', CentrifugoSubscribeHandler),
             (r'/centrifugo/publish', CentrifugoPublishHandler),
+            (r'/centrifugo/sub_refresh', CentrifugoSubRefreshHandler),
         ],
         debug=True
     )
