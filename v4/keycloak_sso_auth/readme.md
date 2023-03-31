@@ -1,4 +1,6 @@
-## Steps
+This is a source code for [Setting up Keycloak SSO authentication flow and connecting to Centrifugo WebSocket](https://centrifugal.dev/blog/2023/03/31/keycloak-sso-centrifugo) blog post in Centrifugal blog. 
+
+## Steps to run an example
 
 Run Keycloak:
 
@@ -26,24 +28,9 @@ docker run --rm -it -p 8000:8000 \
     centrifugo/centrifugo:v4.1.2 centrifugo
 ```
 
-Write React app (with Vite):
+Run this app (with Vite):
 
 ```
-npm create vite@latest keycloak_sso_auth -- --template react
-```
-
-Then:
-
-```
-npm install --save @react-keycloak/web centrifuge keycloak-js
-```
-
-And:
-
-```
+npm install
 npm run dev
 ```
-
-Open http://localhost:5173/.
-
-Try publishing message into user channel over Centrifugo Web UI at http://localhost:8000/#/actions.
