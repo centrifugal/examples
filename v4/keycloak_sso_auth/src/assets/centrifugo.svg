@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<svg width="502" height="502" xmlns="http://www.w3.org/2000/svg">
+  <style>
+#cfgo_outer,
+#cfgo_inner {
+  transform-origin: 50% 50%;
+  animation: spin 6s linear infinite;
+  animation-delay: 0s;
+}
+#cfgo_outer {
+  animation-direction: reverse;
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+  </style>
+  <path id="cfgo_outer" d="M429.4 232.6h70a250 250 0 00-232-232v70a180 180 0 01162 162zM232.6 70.6V.6a250 250 0 00-232 232h70a180 180 0 01162-162zM70.6 267.4H.6a250 250 0 00232 232v-70a180 180 0 01-162-162zM267.4 429.4v70a250 250 0 00232-232h-70a180 180 0 01-162 162z" fill="#393940"/>
+  <path id="cfgo_inner" d="M312.5 171.7l42.5-42.5a160 160 0 00-210 0l42.5 42.5a100 100 0 01125 0zM171.7 187.5L129.2 145a160 160 0 000 210l42.5-42.5a100 100 0 010-125zM187.5 328.3L145 370.8a160 160 0 00210 0l-42.5-42.5a100 100 0 01-125 0z" fill="#e84c3b"/>
+</svg>
