@@ -37,6 +37,11 @@ h1 {
   line-height: 1.1;
 }
 
+pre {
+  font-size: 1.6em;
+  color: yellowgreen;
+}
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;
