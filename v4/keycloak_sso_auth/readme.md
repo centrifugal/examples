@@ -28,7 +28,7 @@ docker run --rm -it -p 8000:8000 \
     centrifugo/centrifugo:v4.1.2 centrifugo
 ```
 
-Run this app (with Vite):
+Run this app:
 
 ```
 npm install
