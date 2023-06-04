@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package centrifugal.centrifugo.proxystream;
+
+option go_package = "./;proxystreamproto";
+
+service CentrifugoProxyStream {
+  rpc SubscribeStream(SubscribeStreamRequest) returns (stream Publication);
+}
+
+message SubscribeStreamRequest {
+  string client = 1;
+  string transport = 2;
+  string protocol = 3;
+  string encoding = 4;
+
+  string channel = 10;
+  bytes data = 11;
+}
+
+message Publication {
+  reserved 1, 2, 3, 5, 6;
+  bytes data = 4;
+  map<string, string> tags = 7;
+}
