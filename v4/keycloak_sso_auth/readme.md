@@ -2,6 +2,8 @@ This is a source code for [Setting up Keycloak SSO authentication flow and conne
 
 ## Steps to run an example
 
+### Run stack
+
 Run Keycloak:
 
 ```
@@ -10,10 +12,6 @@ docker run --rm -it -p 8080:8080 \
     -e KEYCLOAK_ADMIN_PASSWORD=admin \
     quay.io/keycloak/keycloak:21.0.1 start-dev
 ```
-
-1. Create `myrealm`
-1. Create `myclient`. Set valid redirect URIs `http://localhost:5173/*`, web origins as `http://localhost:5173`.
-1. Create `myuser`, set password to it.
 
 Run Centrifugo:
 
@@ -28,7 +26,20 @@ docker run --rm -it -p 8000:8000 \
     centrifugo/centrifugo:v4.1.2 centrifugo
 ```
 
-Run this app:
+**OR**
+
+```yaml
+docker-compose up -d
+```
+
+### Configure Keycloak
+
+1. Create `myrealm`
+2. Create `myclient`. Set valid redirect URIs `http://localhost:5173/*`, web origins as `http://localhost:5173`.
+3. Create `myuser`, set password to it.
+
+
+### Run this app:
 
 ```
 npm install
