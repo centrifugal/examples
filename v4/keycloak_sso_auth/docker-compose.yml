@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    ports:
+      - 8080:8080
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    command: start-dev
+  
+  centrifugo:
+    image: centrifugo/centrifugo:latest
+    ports:
+      - 8000:8000
+    environment:
+      - CENTRIFUGO_ALLOWED_ORIGINS=http://localhost:5173
+      - CENTRIFUGO_TOKEN_JWKS_PUBLIC_ENDPOINT=http://keycloak:8080/realms/myrealm/protocol/openid-connect/certs
+      - CENTRIFUGO_ALLOW_USER_LIMITED_CHANNELS=true
+      - CENTRIFUGO_ADMIN=true
+      - CENTRIFUGO_ADMIN_SECRET=secret
+      - CENTRIFUGO_ADMIN_PASSWORD=admin
