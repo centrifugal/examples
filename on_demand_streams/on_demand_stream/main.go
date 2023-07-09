@@ -16,18 +16,20 @@ type streamerServer struct {
 	pb.UnimplementedCentrifugoProxyStreamServer
 }
 
-func (s *streamerServer) SubscribeStream(req *pb.SubscribeStreamRequest, stream pb.CentrifugoProxyStream_SubscribeStreamServer) error {
-	stream.Send(&pb.Publication{})
+func (s *streamerServer) Consume(req *pb.SubscribeRequest, stream pb.CentrifugoProxyStream_ConsumeServer) error {
+	stream.Send(&pb.Response{})
 	i := 0
 	for {
 		time.Sleep(time.Second)
-		stream.Send(&pb.Publication{Data: []byte(`{"input": "` + strconv.Itoa(i) + `"}`)})
+		pub := &pb.Publication{Data: []byte(`{"input": "` + strconv.Itoa(i) + `"}`)}
+		stream.Send(&pb.Response{Publication: pub})
 		i++
 	}
 }
 
 func main() {
-	lis, err := net.Listen("tcp", ":50051")
+	addr := ":12000"
+	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -35,7 +37,7 @@ func main() {
 	s := grpc.NewServer(grpc.MaxConcurrentStreams(math.MaxUint32))
 	pb.RegisterCentrifugoProxyStreamServer(s, &streamerServer{})
 
-	fmt.Println("Server listening on port 50051")
+	fmt.Println("Server listening on", addr)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

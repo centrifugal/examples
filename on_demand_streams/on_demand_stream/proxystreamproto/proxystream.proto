@@ -4,11 +4,34 @@ package centrifugal.centrifugo.proxystream;
 
 option go_package = "./;proxystreamproto";
 
+// CentrifugoProxyStream allows proxying Centrifugo channel subscriptions to the application
+// backend in form of unidirectional or bidirectional streams. This way it's possible to achieve
+// on-demand streaming when data is only exchanged while client is subscribed.
 service CentrifugoProxyStream {
-  rpc SubscribeStream(SubscribeStreamRequest) returns (stream Publication);
+  rpc Consume(SubscribeRequest) returns (stream Response);
+  rpc Communicate(stream CommunicateRequest) returns (stream Response);
 }
 
-message SubscribeStreamRequest {
+message CommunicateRequest {
+  // Centrifugo always sends this within the first message upon user subscription request.
+  // It's always not set in the following StreamRequest messages from Centrifugo.
+  SubscribeRequest subscribe_request = 1;
+  // Publication may be set when client publishes to the on-demand stream. If you are using
+  // bidirectional stream then Centrifugo assumes publications from client-side are allowed.
+  Publication publication = 2;
+}
+
+message Response {
+  // SubscribeResponse may optionally be set in the first message from backend to Centrifugo.
+  SubscribeResponse subscribe_response = 1;
+  // Publication goes to client. Can't be set in the first message from backend to Centrifugo.
+  Publication publication = 2;
+}
+
+message SubscribeResponse {}
+
+// SubscribeRequest contains information about channel subscription.
+message SubscribeRequest {
   string client = 1;
   string transport = 2;
   string protocol = 3;
@@ -18,6 +41,7 @@ message SubscribeStreamRequest {
   bytes data = 11;
 }
 
+// Publication is an event to be sent to a client.
 message Publication {
   reserved 1, 2, 3, 5, 6;
   bytes data = 4;

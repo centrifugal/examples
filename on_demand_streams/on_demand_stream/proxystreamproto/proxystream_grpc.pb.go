@@ -18,7 +18,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CentrifugoProxyStreamClient interface {
-	SubscribeStream(ctx context.Context, in *SubscribeStreamRequest, opts ...grpc.CallOption) (CentrifugoProxyStream_SubscribeStreamClient, error)
+	Consume(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (CentrifugoProxyStream_ConsumeClient, error)
+	Communicate(ctx context.Context, opts ...grpc.CallOption) (CentrifugoProxyStream_CommunicateClient, error)
 }
 
 type centrifugoProxyStreamClient struct {
@@ -29,12 +30,12 @@ func NewCentrifugoProxyStreamClient(cc grpc.ClientConnInterface) CentrifugoProxy
 	return &centrifugoProxyStreamClient{cc}
 }
 
-func (c *centrifugoProxyStreamClient) SubscribeStream(ctx context.Context, in *SubscribeStreamRequest, opts ...grpc.CallOption) (CentrifugoProxyStream_SubscribeStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &CentrifugoProxyStream_ServiceDesc.Streams[0], "/centrifugal.centrifugo.proxystream.CentrifugoProxyStream/SubscribeStream", opts...)
+func (c *centrifugoProxyStreamClient) Consume(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (CentrifugoProxyStream_ConsumeClient, error) {
+	stream, err := c.cc.NewStream(ctx, &CentrifugoProxyStream_ServiceDesc.Streams[0], "/centrifugal.centrifugo.proxystream.CentrifugoProxyStream/Consume", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &centrifugoProxyStreamSubscribeStreamClient{stream}
+	x := &centrifugoProxyStreamConsumeClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -44,17 +45,48 @@ func (c *centrifugoProxyStreamClient) SubscribeStream(ctx context.Context, in *S
 	return x, nil
 }
 
-type CentrifugoProxyStream_SubscribeStreamClient interface {
-	Recv() (*Publication, error)
+type CentrifugoProxyStream_ConsumeClient interface {
+	Recv() (*Response, error)
 	grpc.ClientStream
 }
 
-type centrifugoProxyStreamSubscribeStreamClient struct {
+type centrifugoProxyStreamConsumeClient struct {
 	grpc.ClientStream
 }
 
-func (x *centrifugoProxyStreamSubscribeStreamClient) Recv() (*Publication, error) {
-	m := new(Publication)
+func (x *centrifugoProxyStreamConsumeClient) Recv() (*Response, error) {
+	m := new(Response)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *centrifugoProxyStreamClient) Communicate(ctx context.Context, opts ...grpc.CallOption) (CentrifugoProxyStream_CommunicateClient, error) {
+	stream, err := c.cc.NewStream(ctx, &CentrifugoProxyStream_ServiceDesc.Streams[1], "/centrifugal.centrifugo.proxystream.CentrifugoProxyStream/Communicate", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &centrifugoProxyStreamCommunicateClient{stream}
+	return x, nil
+}
+
+type CentrifugoProxyStream_CommunicateClient interface {
+	Send(*CommunicateRequest) error
+	Recv() (*Response, error)
+	grpc.ClientStream
+}
+
+type centrifugoProxyStreamCommunicateClient struct {
+	grpc.ClientStream
+}
+
+func (x *centrifugoProxyStreamCommunicateClient) Send(m *CommunicateRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *centrifugoProxyStreamCommunicateClient) Recv() (*Response, error) {
+	m := new(Response)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -65,7 +97,8 @@ func (x *centrifugoProxyStreamSubscribeStreamClient) Recv() (*Publication, error
 // All implementations must embed UnimplementedCentrifugoProxyStreamServer
 // for forward compatibility
 type CentrifugoProxyStreamServer interface {
-	SubscribeStream(*SubscribeStreamRequest, CentrifugoProxyStream_SubscribeStreamServer) error
+	Consume(*SubscribeRequest, CentrifugoProxyStream_ConsumeServer) error
+	Communicate(CentrifugoProxyStream_CommunicateServer) error
 	mustEmbedUnimplementedCentrifugoProxyStreamServer()
 }
 
@@ -73,8 +106,11 @@ type CentrifugoProxyStreamServer interface {
 type UnimplementedCentrifugoProxyStreamServer struct {
 }
 
-func (UnimplementedCentrifugoProxyStreamServer) SubscribeStream(*SubscribeStreamRequest, CentrifugoProxyStream_SubscribeStreamServer) error {
-	return status.Errorf(codes.Unimplemented, "method SubscribeStream not implemented")
+func (UnimplementedCentrifugoProxyStreamServer) Consume(*SubscribeRequest, CentrifugoProxyStream_ConsumeServer) error {
+	return status.Errorf(codes.Unimplemented, "method Consume not implemented")
+}
+func (UnimplementedCentrifugoProxyStreamServer) Communicate(CentrifugoProxyStream_CommunicateServer) error {
+	return status.Errorf(codes.Unimplemented, "method Communicate not implemented")
 }
 func (UnimplementedCentrifugoProxyStreamServer) mustEmbedUnimplementedCentrifugoProxyStreamServer() {}
 
@@ -89,25 +125,51 @@ func RegisterCentrifugoProxyStreamServer(s grpc.ServiceRegistrar, srv Centrifugo
 	s.RegisterService(&CentrifugoProxyStream_ServiceDesc, srv)
 }
 
-func _CentrifugoProxyStream_SubscribeStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(SubscribeStreamRequest)
+func _CentrifugoProxyStream_Consume_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SubscribeRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(CentrifugoProxyStreamServer).SubscribeStream(m, &centrifugoProxyStreamSubscribeStreamServer{stream})
+	return srv.(CentrifugoProxyStreamServer).Consume(m, &centrifugoProxyStreamConsumeServer{stream})
 }
 
-type CentrifugoProxyStream_SubscribeStreamServer interface {
-	Send(*Publication) error
+type CentrifugoProxyStream_ConsumeServer interface {
+	Send(*Response) error
 	grpc.ServerStream
 }
 
-type centrifugoProxyStreamSubscribeStreamServer struct {
+type centrifugoProxyStreamConsumeServer struct {
 	grpc.ServerStream
 }
 
-func (x *centrifugoProxyStreamSubscribeStreamServer) Send(m *Publication) error {
+func (x *centrifugoProxyStreamConsumeServer) Send(m *Response) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func _CentrifugoProxyStream_Communicate_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(CentrifugoProxyStreamServer).Communicate(&centrifugoProxyStreamCommunicateServer{stream})
+}
+
+type CentrifugoProxyStream_CommunicateServer interface {
+	Send(*Response) error
+	Recv() (*CommunicateRequest, error)
+	grpc.ServerStream
+}
+
+type centrifugoProxyStreamCommunicateServer struct {
+	grpc.ServerStream
+}
+
+func (x *centrifugoProxyStreamCommunicateServer) Send(m *Response) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *centrifugoProxyStreamCommunicateServer) Recv() (*CommunicateRequest, error) {
+	m := new(CommunicateRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // CentrifugoProxyStream_ServiceDesc is the grpc.ServiceDesc for CentrifugoProxyStream service.
@@ -119,9 +181,15 @@ var CentrifugoProxyStream_ServiceDesc = grpc.ServiceDesc{
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "SubscribeStream",
-			Handler:       _CentrifugoProxyStream_SubscribeStream_Handler,
+			StreamName:    "Consume",
+			Handler:       _CentrifugoProxyStream_Consume_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "Communicate",
+			Handler:       _CentrifugoProxyStream_Communicate_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "proxystream.proto",
