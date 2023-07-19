@@ -67,16 +67,20 @@
         //   }
         // ],
         {
-          token: '{{auth_data["token"]}}',
-          getToken: function (ctx) {
-            return getToken('/centrifuge/refresh', ctx);
-          },
+          // token: '{{auth_data["token"]}}',
+          // getToken: function (ctx) {
+          //   return getToken('/centrifuge/refresh', ctx);
+          // },
           emulationEndpoint: 'http://localhost:8000/emulation',
           debug: true,
           name: "js", // name describes type of client.
           version: "v0.0.23", // your app-specific version.
         }
       );
+
+      centrifuge.on('message', function (ctx) {
+        console.log(ctx.data);
+      })
 
       // bind listeners on centrifuge object instance events.
       centrifuge.on('connected', function (ctx) {
@@ -140,10 +144,10 @@
       // subscription request will be firer after client will connect to
       // Centrifugo and will be authorized.
       var sub = centrifuge.newSubscription(channel, {
-        token: '{{auth_data["subscriptionToken"]}}',
-        getToken: function (ctx) {
-          return getToken('/centrifuge/subscribe', ctx);
-        },
+        // token: '{{auth_data["subscriptionToken"]}}',
+        // getToken: function (ctx) {
+        //   return getToken('/centrifuge/subscribe', ctx);
+        // },
       });
 
       sub.on('publication', handleMessage)
@@ -212,6 +216,7 @@
         }, function (err) {
           drawText("Publish error: " + JSON.stringify(err));
         });
+        centrifuge.send({ "input": input.value });
         input.value = '';
       });
     });

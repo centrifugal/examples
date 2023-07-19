@@ -18,8 +18,14 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CentrifugoProxyStreamClient interface {
-	Consume(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (CentrifugoProxyStream_ConsumeClient, error)
-	Communicate(ctx context.Context, opts ...grpc.CallOption) (CentrifugoProxyStream_CommunicateClient, error)
+	// ConnectUnidirectional allows handling unidirectional connections.
+	ConnectUnidirectional(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (CentrifugoProxyStream_ConnectUnidirectionalClient, error)
+	// ConnectBidirectional allows handling bidirectional connections.
+	ConnectBidirectional(ctx context.Context, opts ...grpc.CallOption) (CentrifugoProxyStream_ConnectBidirectionalClient, error)
+	// SubscribeUnidirectional allows handling unidirectional subscription streams.
+	SubscribeUnidirectional(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (CentrifugoProxyStream_SubscribeUnidirectionalClient, error)
+	// SubscribeBidirectional allows handling bidirectional subscription streams.
+	SubscribeBidirectional(ctx context.Context, opts ...grpc.CallOption) (CentrifugoProxyStream_SubscribeBidirectionalClient, error)
 }
 
 type centrifugoProxyStreamClient struct {
@@ -30,12 +36,12 @@ func NewCentrifugoProxyStreamClient(cc grpc.ClientConnInterface) CentrifugoProxy
 	return &centrifugoProxyStreamClient{cc}
 }
 
-func (c *centrifugoProxyStreamClient) Consume(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (CentrifugoProxyStream_ConsumeClient, error) {
-	stream, err := c.cc.NewStream(ctx, &CentrifugoProxyStream_ServiceDesc.Streams[0], "/centrifugal.centrifugo.proxystream.CentrifugoProxyStream/Consume", opts...)
+func (c *centrifugoProxyStreamClient) ConnectUnidirectional(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (CentrifugoProxyStream_ConnectUnidirectionalClient, error) {
+	stream, err := c.cc.NewStream(ctx, &CentrifugoProxyStream_ServiceDesc.Streams[0], "/centrifugal.centrifugo.proxystream.CentrifugoProxyStream/ConnectUnidirectional", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &centrifugoProxyStreamConsumeClient{stream}
+	x := &centrifugoProxyStreamConnectUnidirectionalClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -45,16 +51,16 @@ func (c *centrifugoProxyStreamClient) Consume(ctx context.Context, in *Subscribe
 	return x, nil
 }
 
-type CentrifugoProxyStream_ConsumeClient interface {
+type CentrifugoProxyStream_ConnectUnidirectionalClient interface {
 	Recv() (*Response, error)
 	grpc.ClientStream
 }
 
-type centrifugoProxyStreamConsumeClient struct {
+type centrifugoProxyStreamConnectUnidirectionalClient struct {
 	grpc.ClientStream
 }
 
-func (x *centrifugoProxyStreamConsumeClient) Recv() (*Response, error) {
+func (x *centrifugoProxyStreamConnectUnidirectionalClient) Recv() (*Response, error) {
 	m := new(Response)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -62,31 +68,94 @@ func (x *centrifugoProxyStreamConsumeClient) Recv() (*Response, error) {
 	return m, nil
 }
 
-func (c *centrifugoProxyStreamClient) Communicate(ctx context.Context, opts ...grpc.CallOption) (CentrifugoProxyStream_CommunicateClient, error) {
-	stream, err := c.cc.NewStream(ctx, &CentrifugoProxyStream_ServiceDesc.Streams[1], "/centrifugal.centrifugo.proxystream.CentrifugoProxyStream/Communicate", opts...)
+func (c *centrifugoProxyStreamClient) ConnectBidirectional(ctx context.Context, opts ...grpc.CallOption) (CentrifugoProxyStream_ConnectBidirectionalClient, error) {
+	stream, err := c.cc.NewStream(ctx, &CentrifugoProxyStream_ServiceDesc.Streams[1], "/centrifugal.centrifugo.proxystream.CentrifugoProxyStream/ConnectBidirectional", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &centrifugoProxyStreamCommunicateClient{stream}
+	x := &centrifugoProxyStreamConnectBidirectionalClient{stream}
 	return x, nil
 }
 
-type CentrifugoProxyStream_CommunicateClient interface {
-	Send(*CommunicateRequest) error
+type CentrifugoProxyStream_ConnectBidirectionalClient interface {
+	Send(*Request) error
 	Recv() (*Response, error)
 	grpc.ClientStream
 }
 
-type centrifugoProxyStreamCommunicateClient struct {
+type centrifugoProxyStreamConnectBidirectionalClient struct {
 	grpc.ClientStream
 }
 
-func (x *centrifugoProxyStreamCommunicateClient) Send(m *CommunicateRequest) error {
+func (x *centrifugoProxyStreamConnectBidirectionalClient) Send(m *Request) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *centrifugoProxyStreamCommunicateClient) Recv() (*Response, error) {
+func (x *centrifugoProxyStreamConnectBidirectionalClient) Recv() (*Response, error) {
 	m := new(Response)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *centrifugoProxyStreamClient) SubscribeUnidirectional(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (CentrifugoProxyStream_SubscribeUnidirectionalClient, error) {
+	stream, err := c.cc.NewStream(ctx, &CentrifugoProxyStream_ServiceDesc.Streams[2], "/centrifugal.centrifugo.proxystream.CentrifugoProxyStream/SubscribeUnidirectional", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &centrifugoProxyStreamSubscribeUnidirectionalClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type CentrifugoProxyStream_SubscribeUnidirectionalClient interface {
+	Recv() (*ChannelResponse, error)
+	grpc.ClientStream
+}
+
+type centrifugoProxyStreamSubscribeUnidirectionalClient struct {
+	grpc.ClientStream
+}
+
+func (x *centrifugoProxyStreamSubscribeUnidirectionalClient) Recv() (*ChannelResponse, error) {
+	m := new(ChannelResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *centrifugoProxyStreamClient) SubscribeBidirectional(ctx context.Context, opts ...grpc.CallOption) (CentrifugoProxyStream_SubscribeBidirectionalClient, error) {
+	stream, err := c.cc.NewStream(ctx, &CentrifugoProxyStream_ServiceDesc.Streams[3], "/centrifugal.centrifugo.proxystream.CentrifugoProxyStream/SubscribeBidirectional", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &centrifugoProxyStreamSubscribeBidirectionalClient{stream}
+	return x, nil
+}
+
+type CentrifugoProxyStream_SubscribeBidirectionalClient interface {
+	Send(*ChannelRequest) error
+	Recv() (*ChannelResponse, error)
+	grpc.ClientStream
+}
+
+type centrifugoProxyStreamSubscribeBidirectionalClient struct {
+	grpc.ClientStream
+}
+
+func (x *centrifugoProxyStreamSubscribeBidirectionalClient) Send(m *ChannelRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *centrifugoProxyStreamSubscribeBidirectionalClient) Recv() (*ChannelResponse, error) {
+	m := new(ChannelResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -97,8 +166,14 @@ func (x *centrifugoProxyStreamCommunicateClient) Recv() (*Response, error) {
 // All implementations must embed UnimplementedCentrifugoProxyStreamServer
 // for forward compatibility
 type CentrifugoProxyStreamServer interface {
-	Consume(*SubscribeRequest, CentrifugoProxyStream_ConsumeServer) error
-	Communicate(CentrifugoProxyStream_CommunicateServer) error
+	// ConnectUnidirectional allows handling unidirectional connections.
+	ConnectUnidirectional(*ConnectRequest, CentrifugoProxyStream_ConnectUnidirectionalServer) error
+	// ConnectBidirectional allows handling bidirectional connections.
+	ConnectBidirectional(CentrifugoProxyStream_ConnectBidirectionalServer) error
+	// SubscribeUnidirectional allows handling unidirectional subscription streams.
+	SubscribeUnidirectional(*SubscribeRequest, CentrifugoProxyStream_SubscribeUnidirectionalServer) error
+	// SubscribeBidirectional allows handling bidirectional subscription streams.
+	SubscribeBidirectional(CentrifugoProxyStream_SubscribeBidirectionalServer) error
 	mustEmbedUnimplementedCentrifugoProxyStreamServer()
 }
 
@@ -106,11 +181,17 @@ type CentrifugoProxyStreamServer interface {
 type UnimplementedCentrifugoProxyStreamServer struct {
 }
 
-func (UnimplementedCentrifugoProxyStreamServer) Consume(*SubscribeRequest, CentrifugoProxyStream_ConsumeServer) error {
-	return status.Errorf(codes.Unimplemented, "method Consume not implemented")
+func (UnimplementedCentrifugoProxyStreamServer) ConnectUnidirectional(*ConnectRequest, CentrifugoProxyStream_ConnectUnidirectionalServer) error {
+	return status.Errorf(codes.Unimplemented, "method ConnectUnidirectional not implemented")
 }
-func (UnimplementedCentrifugoProxyStreamServer) Communicate(CentrifugoProxyStream_CommunicateServer) error {
-	return status.Errorf(codes.Unimplemented, "method Communicate not implemented")
+func (UnimplementedCentrifugoProxyStreamServer) ConnectBidirectional(CentrifugoProxyStream_ConnectBidirectionalServer) error {
+	return status.Errorf(codes.Unimplemented, "method ConnectBidirectional not implemented")
+}
+func (UnimplementedCentrifugoProxyStreamServer) SubscribeUnidirectional(*SubscribeRequest, CentrifugoProxyStream_SubscribeUnidirectionalServer) error {
+	return status.Errorf(codes.Unimplemented, "method SubscribeUnidirectional not implemented")
+}
+func (UnimplementedCentrifugoProxyStreamServer) SubscribeBidirectional(CentrifugoProxyStream_SubscribeBidirectionalServer) error {
+	return status.Errorf(codes.Unimplemented, "method SubscribeBidirectional not implemented")
 }
 func (UnimplementedCentrifugoProxyStreamServer) mustEmbedUnimplementedCentrifugoProxyStreamServer() {}
 
@@ -125,47 +206,94 @@ func RegisterCentrifugoProxyStreamServer(s grpc.ServiceRegistrar, srv Centrifugo
 	s.RegisterService(&CentrifugoProxyStream_ServiceDesc, srv)
 }
 
-func _CentrifugoProxyStream_Consume_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _CentrifugoProxyStream_ConnectUnidirectional_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ConnectRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(CentrifugoProxyStreamServer).ConnectUnidirectional(m, &centrifugoProxyStreamConnectUnidirectionalServer{stream})
+}
+
+type CentrifugoProxyStream_ConnectUnidirectionalServer interface {
+	Send(*Response) error
+	grpc.ServerStream
+}
+
+type centrifugoProxyStreamConnectUnidirectionalServer struct {
+	grpc.ServerStream
+}
+
+func (x *centrifugoProxyStreamConnectUnidirectionalServer) Send(m *Response) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _CentrifugoProxyStream_ConnectBidirectional_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(CentrifugoProxyStreamServer).ConnectBidirectional(&centrifugoProxyStreamConnectBidirectionalServer{stream})
+}
+
+type CentrifugoProxyStream_ConnectBidirectionalServer interface {
+	Send(*Response) error
+	Recv() (*Request, error)
+	grpc.ServerStream
+}
+
+type centrifugoProxyStreamConnectBidirectionalServer struct {
+	grpc.ServerStream
+}
+
+func (x *centrifugoProxyStreamConnectBidirectionalServer) Send(m *Response) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *centrifugoProxyStreamConnectBidirectionalServer) Recv() (*Request, error) {
+	m := new(Request)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _CentrifugoProxyStream_SubscribeUnidirectional_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(SubscribeRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(CentrifugoProxyStreamServer).Consume(m, &centrifugoProxyStreamConsumeServer{stream})
+	return srv.(CentrifugoProxyStreamServer).SubscribeUnidirectional(m, &centrifugoProxyStreamSubscribeUnidirectionalServer{stream})
 }
 
-type CentrifugoProxyStream_ConsumeServer interface {
-	Send(*Response) error
+type CentrifugoProxyStream_SubscribeUnidirectionalServer interface {
+	Send(*ChannelResponse) error
 	grpc.ServerStream
 }
 
-type centrifugoProxyStreamConsumeServer struct {
+type centrifugoProxyStreamSubscribeUnidirectionalServer struct {
 	grpc.ServerStream
 }
 
-func (x *centrifugoProxyStreamConsumeServer) Send(m *Response) error {
+func (x *centrifugoProxyStreamSubscribeUnidirectionalServer) Send(m *ChannelResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _CentrifugoProxyStream_Communicate_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(CentrifugoProxyStreamServer).Communicate(&centrifugoProxyStreamCommunicateServer{stream})
+func _CentrifugoProxyStream_SubscribeBidirectional_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(CentrifugoProxyStreamServer).SubscribeBidirectional(&centrifugoProxyStreamSubscribeBidirectionalServer{stream})
 }
 
-type CentrifugoProxyStream_CommunicateServer interface {
-	Send(*Response) error
-	Recv() (*CommunicateRequest, error)
+type CentrifugoProxyStream_SubscribeBidirectionalServer interface {
+	Send(*ChannelResponse) error
+	Recv() (*ChannelRequest, error)
 	grpc.ServerStream
 }
 
-type centrifugoProxyStreamCommunicateServer struct {
+type centrifugoProxyStreamSubscribeBidirectionalServer struct {
 	grpc.ServerStream
 }
 
-func (x *centrifugoProxyStreamCommunicateServer) Send(m *Response) error {
+func (x *centrifugoProxyStreamSubscribeBidirectionalServer) Send(m *ChannelResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *centrifugoProxyStreamCommunicateServer) Recv() (*CommunicateRequest, error) {
-	m := new(CommunicateRequest)
+func (x *centrifugoProxyStreamSubscribeBidirectionalServer) Recv() (*ChannelRequest, error) {
+	m := new(ChannelRequest)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -181,13 +309,24 @@ var CentrifugoProxyStream_ServiceDesc = grpc.ServiceDesc{
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Consume",
-			Handler:       _CentrifugoProxyStream_Consume_Handler,
+			StreamName:    "ConnectUnidirectional",
+			Handler:       _CentrifugoProxyStream_ConnectUnidirectional_Handler,
 			ServerStreams: true,
 		},
 		{
-			StreamName:    "Communicate",
-			Handler:       _CentrifugoProxyStream_Communicate_Handler,
+			StreamName:    "ConnectBidirectional",
+			Handler:       _CentrifugoProxyStream_ConnectBidirectional_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "SubscribeUnidirectional",
+			Handler:       _CentrifugoProxyStream_SubscribeUnidirectional_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "SubscribeBidirectional",
+			Handler:       _CentrifugoProxyStream_SubscribeBidirectional_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},
