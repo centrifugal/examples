@@ -9,8 +9,8 @@ import (
 	gocent "github.com/centrifugal/gocent/v3"
 )
 
-type post struct {
-	number int
+type Post struct {
+	Number int `json:"number,omitempty"`
 }
 
 func publish(ctx context.Context) {
@@ -23,7 +23,7 @@ func publish(ctx context.Context) {
 	i := 0
 	for {
 		i++
-		data, _ := json.Marshal(post{number: i})
+		data, _ := json.Marshal(Post{Number: i})
 		result, err := c.Publish(ctx, channelTest, data)
 		if err != nil {
 			log.Fatalf("Error calling publish: %v", err)
