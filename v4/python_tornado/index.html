@@ -18,7 +18,7 @@
   <script type="text/javascript">
     var address = '{{protocol}}://{{centrifuge_address}}/connection/websocket';
   </script>
-  <script type="text/javascript" src="https://unpkg.com/centrifuge@3.1.0/dist/centrifuge.js"></script>
+  <script type="text/javascript" src="https://unpkg.com/centrifuge@5.0.1/dist/centrifuge.js"></script>
   <script type="text/javascript">
     // helper functions to work with escaping html.
     const tagsToReplace = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
@@ -67,10 +67,10 @@
         //   }
         // ],
         {
-          // token: '{{auth_data["token"]}}',
-          // getToken: function (ctx) {
-          //   return getToken('/centrifuge/refresh', ctx);
-          // },
+          token: '{{auth_data["token"]}}',
+          getToken: function (ctx) {
+            return getToken('/centrifuge/refresh', ctx);
+          },
           emulationEndpoint: 'http://localhost:8000/emulation',
           debug: true,
           name: "js", // name describes type of client.
@@ -216,7 +216,6 @@
         }, function (err) {
           drawText("Publish error: " + JSON.stringify(err));
         });
-        centrifuge.send({ "input": input.value });
         input.value = '';
       });
     });

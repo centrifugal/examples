@@ -9,24 +9,24 @@ import (
 	"strconv"
 	"time"
 
-	pb "github.com/centrifugal/examples/on_demand_streams/proxystreamproto"
+	pb "github.com/centrifugal/examples/on_demand_streams/proxyproto"
 	"google.golang.org/grpc"
 )
 
 type streamerServer struct {
-	pb.UnimplementedCentrifugoProxyStreamServer
+	pb.UnimplementedCentrifugoProxyServer
 }
 
 func (s *streamerServer) SubscribeUnidirectional(
 	req *pb.SubscribeRequest,
-	stream pb.CentrifugoProxyStream_SubscribeUnidirectionalServer,
+	stream pb.CentrifugoProxy_SubscribeUnidirectionalServer,
 ) error {
 	started := time.Now()
 	fmt.Println("unidirectional subscribe called with request", req)
 	defer func() {
 		fmt.Println("unidirectional subscribe finished, elapsed", time.Since(started))
 	}()
-	stream.Send(&pb.ChannelResponse{
+	stream.Send(&pb.StreamSubscribeResponse{
 		SubscribeResponse: &pb.SubscribeResponse{},
 	})
 	i := 0
@@ -37,7 +37,7 @@ func (s *streamerServer) SubscribeUnidirectional(
 		case <-time.After(1000 * time.Millisecond):
 		}
 		pub := &pb.Publication{Data: []byte(`{"input": "` + strconv.Itoa(i) + `"}`)}
-		stream.Send(&pb.ChannelResponse{Publication: pub})
+		stream.Send(&pb.StreamSubscribeResponse{Publication: pub})
 		i++
 		if i >= 20 {
 			break
@@ -51,7 +51,7 @@ type clientData struct {
 }
 
 func (s *streamerServer) SubscribeBidirectional(
-	stream pb.CentrifugoProxyStream_SubscribeBidirectionalServer,
+	stream pb.CentrifugoProxy_SubscribeBidirectionalServer,
 ) error {
 	started := time.Now()
 	fmt.Println("bidirectional subscribe called")
@@ -64,7 +64,7 @@ func (s *streamerServer) SubscribeBidirectional(
 		return err
 	}
 	fmt.Println("subscribe request received", req.SubscribeRequest)
-	stream.Send(&pb.ChannelResponse{
+	stream.Send(&pb.StreamSubscribeResponse{
 		SubscribeResponse: &pb.SubscribeResponse{},
 	})
 	// The following messages contain publications from client.
@@ -82,47 +82,7 @@ func (s *streamerServer) SubscribeBidirectional(
 			return nil
 		}
 		pub := &pb.Publication{Data: []byte(`{"input": "` + cd.Input + `"}`)}
-		stream.Send(&pb.ChannelResponse{Publication: pub})
-	}
-}
-
-func (s *streamerServer) ConnectBidirectional(
-	stream pb.CentrifugoProxyStream_ConnectBidirectionalServer,
-) error {
-	started := time.Now()
-	fmt.Println("bidirectional connect called")
-	defer func() {
-		fmt.Println("bidirectional connect finished, elapsed", time.Since(started))
-	}()
-	// First message always contains SubscribeRequest.
-	req, err := stream.Recv()
-	if err != nil {
-		return err
-	}
-	fmt.Println("connect request received", req.ConnectRequest)
-	stream.Send(&pb.Response{
-		ConnectResponse: &pb.ConnectResponse{
-			Result: &pb.ConnectResult{
-				User: "test",
-			},
-		},
-	})
-	// The following messages contain publications from client.
-	for {
-		req, err := stream.Recv()
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		data := req.Message.Data
-		fmt.Println("message from client", string(data))
-		var cd clientData
-		err = json.Unmarshal(data, &cd)
-		if err != nil {
-			return nil
-		}
-		msg := &pb.Message{Data: []byte(`{"input": "` + cd.Input + `"}`)}
-		stream.Send(&pb.Response{Message: msg})
+		stream.Send(&pb.StreamSubscribeResponse{Publication: pub})
 	}
 }
 
@@ -134,7 +94,7 @@ func main() {
 	}
 
 	s := grpc.NewServer(grpc.MaxConcurrentStreams(math.MaxUint32))
-	pb.RegisterCentrifugoProxyStreamServer(s, &streamerServer{})
+	pb.RegisterCentrifugoProxyServer(s, &streamerServer{})
 
 	fmt.Println("Server listening on", addr)
 	if err := s.Serve(lis); err != nil {
