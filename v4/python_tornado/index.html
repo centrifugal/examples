@@ -78,10 +78,6 @@
         }
       );
 
-      centrifuge.on('message', function (ctx) {
-        console.log(ctx.data);
-      })
-
       // bind listeners on centrifuge object instance events.
       centrifuge.on('connected', function (ctx) {
         drawText('Connected with client ID ' + ctx.client + ' over ' + ctx.transport);
@@ -144,10 +140,10 @@
       // subscription request will be firer after client will connect to
       // Centrifugo and will be authorized.
       var sub = centrifuge.newSubscription(channel, {
-        // token: '{{auth_data["subscriptionToken"]}}',
-        // getToken: function (ctx) {
-        //   return getToken('/centrifuge/subscribe', ctx);
-        // },
+        token: '{{auth_data["subscriptionToken"]}}',
+        getToken: function (ctx) {
+          return getToken('/centrifuge/subscribe', ctx);
+        },
       });
 
       sub.on('publication', handleMessage)
