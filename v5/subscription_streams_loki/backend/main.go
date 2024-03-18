@@ -151,7 +151,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 
-	sendLogsToLoki(ctx)
+	go sendLogsToLoki(ctx)
 
 	querierConn, err := grpc.Dial(lokiGRPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -169,6 +169,12 @@ func main() {
 	pb.RegisterCentrifugoProxyServer(s, &streamerServer{
 		lokiQuerierClient: querierClient,
 	})
+
+	go func() {
+		<-ctx.Done()
+		log.Println("Shutting down server...")
+		s.GracefulStop()
+	}()
 
 	log.Println("Server listening on", addr)
 	if err := s.Serve(lis); err != nil {

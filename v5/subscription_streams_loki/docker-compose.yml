@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:2.9.5
     ports:
       - "3100:3100"
   centrifugo:
