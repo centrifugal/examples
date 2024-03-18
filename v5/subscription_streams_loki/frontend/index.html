@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Streaming logs with Centrifugo and Loki</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+            background-color: #091706;
+        }
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #input {
+            display: flex; 
+            justify-content: space-between;
+            padding: 15px;
+        }
+        #query {
+            color: white;
+            flex-grow: 1;
+            margin-right: 10px;
+            padding: 10px;
+            font-size: 24px;
+            border: 3px solid #6f896f;
+            border-radius: 4px;
+            outline: none;
+            background-color: #2a452b;
+        }
+        #query::placeholder {
+            color: #6f896f;
+        }
+        #query:disabled {
+            background-color: #71393f;
+            border-color: #9a5259;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 24px;
+            border: none; 
+            background-color: #0e6c28;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #05450b;
+        }
+        button:disabled {
+            background-color: #71393f;
+        }
+        #logs {
+            flex-grow: 1;
+            overflow-y: scroll;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        #logs ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        #logs li {
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border: 2px solid #CCC;
+            border-radius: 4px;
+            background-color: #0f2411;
+            border-color: #2b4b22;
+            color: #cdedc2;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <form id="input" onsubmit="subscribeToLogs(event)">
+            <input type="text" id="query" autocomplete="off" placeholder="Enter log query" />
+            <button id="submit" type="submit">SUBSCRIBE</button>
+        </form>
+        <div id="logs" style="margin-top: 20px;">
+            <ul id="lines"></ul>
+        </div>
+    </div>
+    <script src="https://unpkg.com/centrifuge@^5/dist/centrifuge.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

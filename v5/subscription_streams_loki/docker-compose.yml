@@ -1,0 +1,27 @@
+version: '3.8'
+services:
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+  centrifugo:
+    image: centrifugo/centrifugo:v5.3.0
+    restart: unless-stopped
+    volumes:
+      - ./centrifugo/config.json:/centrifugo/config.json
+    command: centrifugo -c config.json
+    expose:
+      - 8000
+  backend:
+    build: ./backend
+    expose:
+      - 12000
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "9000:80"
+    depends_on:
+      - centrifugo

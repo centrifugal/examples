@@ -1,0 +1,12 @@
+{
+    "client_insecure": true,
+    "allowed_origins": ["http://localhost:9000"],
+    "proxy_subscribe_stream_endpoint": "grpc://backend:12000",
+    "proxy_subscribe_stream_timeout": "3s",
+    "namespaces": [
+      {
+          "name": "logs",
+          "proxy_subscribe_stream": true
+      }
+    ]
+}
