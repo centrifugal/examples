@@ -1,4 +1,4 @@
-Showcase how to use Cenrifugo subscription streams to consume logs from Loki.
+Showcase how to use Cenrifugo subscription streams to consume logs from Loki. See [blog post](https://centrifugal.dev/blog/2024/03/18/stream-loki-logs-to-browser-with-websocket-to-grpc-subscriptions) in Centrifugal blog.
 
 To run:
 
