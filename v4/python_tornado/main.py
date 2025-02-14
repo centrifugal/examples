@@ -155,18 +155,26 @@ class CentrifugoConnectHandler(tornado.web.RequestHandler):
         pass
 
     def post(self):
-        logging.info(f"connect proxy handler called: {self.request.body}")
+        logging.info(f"connect proxy handler called: {self.request.body}, headers:\n{self.request.headers}")
         self.set_header('Content-Type', 'application/json; charset="utf-8"')
         try:
             connectRequest = json.loads(self.request.body)
         except ValueError:
             raise tornado.web.HTTPError(400)
 
-        channels = []
+        # self.set_status(429)
+        # self.set_header('Content-Type', 'application/json')
+        # self.finish(json.dumps({
+        #     "error": "Access denied",
+        #     "status_code": 429
+        # }))
+        # return
 
-        if connectRequest['transport'].startswith('uni_'):
-            # Not secure, in real app we should check channel permissions here.
-            channels.append("$chat:index")
+        channels = ["test"]
+
+        # if connectRequest['transport'].startswith('uni_'):
+        #     # Not secure, in real app we should check channel permissions here.
+        #     channels.append("$chat:index")
 
         for channel in connectRequest.get('channels', []):
             # Not secure, in real app we should check each channel permission here.
@@ -174,7 +182,7 @@ class CentrifugoConnectHandler(tornado.web.RequestHandler):
 
         result = {
             'user': USER_ID,
-            'expire_at': int(time.time()) + 10,
+            # 'expire_at': int(time.time()) + 10,
             'channels': channels,
             'meta': {
                 "connected_at": time.time()
@@ -296,7 +304,7 @@ class CentrifugoPublishHandler(tornado.web.RequestHandler):
         pass
 
     def post(self):
-        logging.info(f"publish proxy handler called: {self.request.body}")
+        logging.info(f"publish proxy handler called: {self.request.body}, headers:\n{self.request.headers}")
         self.set_header('Content-Type', 'application/json; charset="utf-8"')
         try:
             publishRequest = json.loads(self.request.body)
@@ -306,6 +314,19 @@ class CentrifugoPublishHandler(tornado.web.RequestHandler):
             'result': {}
         })
         logging.info(data)
+        self.write(data)
+
+
+# Channel state events proxy example handler.
+class CentrifugoChannelStateEventsHandler(tornado.web.RequestHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    def post(self):
+        logging.info(f"channel state events handler called: {self.request.body}")
+        self.set_header('Content-Type', 'application/json; charset="utf-8"')
+        data = json.dumps({})
         self.write(data)
 
 
@@ -322,6 +343,7 @@ def run():
             (r'/centrifugo/subscribe', CentrifugoSubscribeHandler),
             (r'/centrifugo/publish', CentrifugoPublishHandler),
             (r'/centrifugo/sub_refresh', CentrifugoSubRefreshHandler),
+            (r'/centrifugo/channel_state_events', CentrifugoChannelStateEventsHandler),
         ],
         debug=True
     )
