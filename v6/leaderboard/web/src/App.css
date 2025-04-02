@@ -1,3 +1,47 @@
+/* General Body Styling */
+body {
+  background-color: #f8f9fa;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Container adjustments */
+.container {
+  max-width: 800px;
+}
+
+/* Card styling improvements */
+.card {
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.card-header {
+  background-color: #343a40;
+  color: #fff;
+  font-size: 1.25rem;
+  padding: 0.75rem 1.25rem;
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+}
+
+/* Table enhancements */
+.table thead th {
+  background-color: #e9ecef;
+}
+
+.table tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Fixed width for the rank column to prevent jumping */
+.rank-col {
+  min-width: 60px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Highlight animations */
 .highlight-up {
   animation: highlightUp 1s ease-out;
 }
@@ -7,12 +51,11 @@
 }
 
 @keyframes highlightUp {
-  from { background-color: #9cf7b1; }
+  from { background-color: #a4ff9f; }
   to { background-color: transparent; }
 }
 
 @keyframes highlightDown {
-  from { background-color: #f49aa2; }
+  from { background-color: #feabb2; }
   to { background-color: transparent; }
 }
-

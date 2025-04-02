@@ -13,7 +13,9 @@ with open('lua/update_leaderboard.lua', 'r') as f:
 update_leaderboard = r.register_script(lua_script)
 
 # List of sample leaders
-leaders = ["Alice", "Bob", "Charlie", "David", "Eve"]
+leaders = [
+    "Alice", "Bob", "Charlie", "David", "Eve",
+]
 
 while True:
     leader = random.choice(leaders)

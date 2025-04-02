@@ -8,8 +8,6 @@ function App() {
   const [state, setState] = useState({
     leaders: [],
     prevOrder: {},
-    // lastSeq: 0,
-    // epoch: '',
     highlights: {},
   });
 
@@ -23,22 +21,7 @@ function App() {
     sub.on('publication', (message) => {
       const data = message.data;
  
-      setState(prevState => {
-        // // Check for epoch changes
-        // if (prevState.epoch && data.epoch !== prevState.epoch) {
-        //   // The epoch changed, so reset the state or handle accordingly.
-        //   return {
-        //     leaders: data.leaders,
-        //     prevOrder: {},
-        //     lastSeq: data.seq,
-        //     epoch: data.epoch,
-        //     highlights: {},
-        //   };
-        // }
-        
-        // // Ignore messages with an older or equal sequence
-        // if (data.seq <= prevState.lastSeq) return prevState;
-    
+      setState(prevState => {    
         const newHighlights = {};
         const newLeaders = data.leaders.map((leader, index) => {
           let highlightClass = "";
@@ -71,9 +54,7 @@ function App() {
           ...prevState,
           leaders: newLeaders,
           prevOrder: newOrder,
-          // lastSeq: data.seq,
           highlights: { ...prevState.highlights, ...newHighlights },
-          // epoch: data.epoch, // update epoch if not already set
         };
       });
     });
@@ -89,13 +70,13 @@ function App() {
 
   return (
     <div className="container mt-5">
-      <h1 className="mb-4">Real-time Leaderboard with Centrifugo</h1>
       <div className="card">
+        <div className="card-header">Real-time Leaderboard with Centrifugo</div>
         <div className="card-body">
           <table className="table table-striped">
             <thead>
               <tr>
-                <th scope="col">Rank</th>
+                <th scope="col" className="rank-col">Rank</th>
                 <th scope="col">Name</th>
                 <th scope="col">Score</th>
               </tr>
@@ -103,7 +84,7 @@ function App() {
             <tbody>
               {state.leaders.map((leader, index) => (
                 <motion.tr key={leader.name} layout>
-                  <td className={state.highlights[leader.name] || ''}>{index + 1}</td>
+                  <td className={`rank-col ${state.highlights[leader.name] || ''}`}>{index + 1}</td>
                   <td className={state.highlights[leader.name] || ''}>{leader.name}</td>
                   <td className={state.highlights[leader.name] || ''}>{leader.score}</td>
                 </motion.tr>
