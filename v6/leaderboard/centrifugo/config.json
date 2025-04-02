@@ -1,0 +1,12 @@
+{
+  "secret": "your_secret",
+  "api_key": "api_key",
+  "admin": true,
+  "anonymous": true,
+  "allowed_origins": ["*"],
+  "publish": true,
+  "socket": true,
+  "port": 8000,
+  "websocket": true,
+  "insecure": true
+}

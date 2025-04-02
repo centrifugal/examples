@@ -1,0 +1,38 @@
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  # centrifugo:
+  #   image: centrifugo/centrifugo
+  #   volumes:
+  #     - ./centrifugo/config.json:/centrifugo/config.json
+  #   command: centrifugo --config=/centrifugo/config.json
+  #   ports:
+  #     - "8000:8000"
+
+  backend:
+    build: ./backend
+    depends_on:
+      - redis
+      # - centrifugo
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - 8080:80
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+
+  web:
+    build: ./web
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    command: sh -c "npm install && npm start"
+    # depends_on:
+    #   - centrifugo
