@@ -20,8 +20,8 @@ function App() {
 
     sub.on('publication', (message) => {
       const data = message.data;
- 
-      setState(prevState => {    
+
+      setState(prevState => {
         const newHighlights = {};
         const newLeaders = data.leaders.map((leader, index) => {
           let highlightClass = "";
@@ -35,21 +35,15 @@ function App() {
           }
           if (highlightClass) {
             newHighlights[leader.name] = highlightClass;
-            setTimeout(() => {
-              setState(current => ({
-                ...current,
-                highlights: { ...current.highlights, [leader.name]: "" }
-              }));
-            }, 1000);
           }
           return leader;
         });
-    
+
         const newOrder = {};
         newLeaders.forEach((leader, index) => {
           newOrder[leader.name] = index;
         });
-    
+
         return {
           ...prevState,
           leaders: newLeaders,
@@ -83,10 +77,14 @@ function App() {
             </thead>
             <tbody>
               {state.leaders.map((leader, index) => (
-                <motion.tr key={leader.name} layout>
-                  <td className={`rank-col ${state.highlights[leader.name] || ''}`}>{index + 1}</td>
-                  <td className={state.highlights[leader.name] || ''}>{leader.name}</td>
-                  <td className={state.highlights[leader.name] || ''}>{leader.score}</td>
+                <motion.tr
+                  key={leader.name}
+                  layout
+                  className={state.highlights[leader.name] || ''}
+                >
+                  <td className="rank-col">{index + 1}</td>
+                  <td>{leader.name}</td>
+                  <td>{leader.score}</td>
                 </motion.tr>
               ))}
             </tbody>

@@ -1,7 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Play:wght@400;700&display=swap');
+
 /* General Body Styling */
 body {
   background-color: #f8f9fa;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Play', 'Roboto', sans-serif;
+  font-size: 1.2rem;
 }
 
 /* Container adjustments */
@@ -17,12 +20,13 @@ body {
 }
 
 .card-header {
-  background-color: #343a40;
+  background: linear-gradient(45deg, #1fb8ff, #ff68cd);
   color: #fff;
-  font-size: 1.25rem;
-  padding: 0.75rem 1.25rem;
-  border-top-left-radius: 0.5rem;
-  border-top-right-radius: 0.5rem;
+  font-size: 1.5rem;
+  text-align: center;
+  padding: 1rem;
+  border-top-left-radius: 15px;
+  border-top-right-radius: 15px;
 }
 
 /* Table enhancements */
@@ -42,19 +46,16 @@ body {
 }
 
 /* Highlight animations */
-.highlight-up {
-  animation: highlightUp 1s ease-out;
+.highlight-up td {
+  animation: highlightUp 1s ease-in-out;
 }
-
-.highlight-down {
-  animation: highlightDown 1s ease-out;
+.highlight-down td {
+  animation: highlightDown 1s ease-in-out;
 }
-
 @keyframes highlightUp {
   from { background-color: #a4ff9f; }
   to { background-color: transparent; }
 }
-
 @keyframes highlightDown {
   from { background-color: #feabb2; }
   to { background-color: transparent; }

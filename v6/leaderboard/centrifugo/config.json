@@ -1,12 +1,19 @@
 {
-  "secret": "your_secret",
-  "api_key": "api_key",
-  "admin": true,
-  "anonymous": true,
-  "allowed_origins": ["*"],
-  "publish": true,
-  "socket": true,
-  "port": 8000,
-  "websocket": true,
-  "insecure": true
+  "client": {
+    "insecure": true,
+    "allowed_origins": ["*"]
+  },
+  "consumers": [
+    {
+      "enabled": true,
+      "name": "leaderboard_redis",
+      "type": "redis_stream",
+      "redis_stream": {
+        "address": "redis://localhost:6379",
+        "streams": ["leaderboard-stream"],
+        "consumer_group": "centrifugo",
+        "num_workers": 8
+      }
+    }
+  ]
 }
