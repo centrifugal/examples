@@ -40,5 +40,5 @@ local publish_payload = {
 
 -- Add to stream which is consumed by Centrifugo.
 local payload = cjson.encode(publish_payload)
-redis.call('XADD', stream_key, 'MAXLEN', 1, '*', 'method', 'publish', 'payload', payload)
+redis.call('XADD', stream_key, 'MAXLEN', '~', 10000, '*', 'method', 'publish', 'payload', payload)
 return members
