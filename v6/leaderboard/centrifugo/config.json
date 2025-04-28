@@ -1,0 +1,29 @@
+{
+  "client": {
+     "insecure": true,
+     "allowed_origins": ["*"]
+  },
+  "channel": {
+     "without_namespace": {
+        "history_size": 1,
+        "history_ttl": "1h",
+        "allowed_delta_types": ["fossil"],
+        "delta_publish": true,
+        "force_recovery": true, 
+        "force_recovery_mode": "cache"
+     }
+  },
+  "consumers": [
+     {
+        "enabled": true,
+        "name": "leaderboard_redis",
+        "type": "redis_stream",
+        "redis_stream": {
+           "address": "redis:6379",
+           "streams": ["leaderboard-stream"],
+           "consumer_group": "centrifugo",
+           "num_workers": 8
+        }
+     }
+  ]
+}

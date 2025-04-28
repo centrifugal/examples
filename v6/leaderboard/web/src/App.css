@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Play:wght@400;700&display=swap');
+
+/* General Body Styling */
+body {
+  background-color: #f8f9fa;
+  font-family: 'Play', 'Roboto', sans-serif;
+  font-size: 1.2rem;
+}
+
+/* Container adjustments */
+.container {
+  max-width: 800px;
+}
+
+/* Card styling improvements */
+.card {
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.card-header {
+  background: linear-gradient(45deg, #1fb8ff, #ff68cd);
+  color: #fff;
+  font-size: 1.5rem;
+  text-align: center;
+  padding: 1rem;
+  border-top-left-radius: 15px;
+  border-top-right-radius: 15px;
+}
+
+/* Table enhancements */
+.table thead th {
+  background-color: #e9ecef;
+}
+
+.table tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Fixed width for the rank column to prevent jumping */
+.rank-col {
+  min-width: 60px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Highlight animations */
+.highlight-up td {
+  animation: highlightUp 1s ease-in-out;
+}
+.highlight-down td {
+  animation: highlightDown 1s ease-in-out;
+}
+@keyframes highlightUp {
+  from { background-color: #a4ff9f; }
+  to { background-color: transparent; }
+}
+@keyframes highlightDown {
+  from { background-color: #feabb2; }
+  to { background-color: transparent; }
+}
