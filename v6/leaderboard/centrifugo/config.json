@@ -8,13 +8,14 @@
         "history_size": 1,
         "history_ttl": "1h",
         "allowed_delta_types": ["fossil"],
+        "delta_publish": true,
         "force_recovery": true, 
         "force_recovery_mode": "cache"
      }
   },
   "consumers": [
      {
-        "enabled": false,
+        "enabled": true,
         "name": "leaderboard_redis",
         "type": "redis_stream",
         "redis_stream": {

@@ -6,24 +6,24 @@ services:
     ports:
       - "6379:6379"
 
-  # centrifugo:
-  #   image: centrifugo/centrifugo:v6
-  #   volumes:
-  #     - ./centrifugo/config.json:/centrifugo/config.json
-  #   command: centrifugo --config=/centrifugo/config.json
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     redis:
-  #       condition: service_started
+  centrifugo:
+    image: centrifugo/centrifugo:v6.2.0
+    volumes:
+      - ./centrifugo/config.json:/centrifugo/config.json
+    command: centrifugo --config=/centrifugo/config.json
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_started
 
   backend:
     build: ./backend
     depends_on:
       redis:
         condition: service_started
-      # centrifugo:
-      #   condition: service_started
+      centrifugo:
+        condition: service_started
 
   nginx:
     image: nginx:alpine
