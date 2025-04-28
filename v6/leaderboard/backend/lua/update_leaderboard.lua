@@ -10,21 +10,19 @@ local channel = ARGV[3]
 -- Increment leaderboard score
 redis.call('ZINCRBY', leaderboard_key, score_inc, name)
 
--- Get leaderboard data
-local members = redis.call('ZREVRANGE', leaderboard_key, 0, -1, 'WITHSCORES')
-
 local epoch = redis.call("HGET", state_key, "epoch")
 if not epoch then
     local t = redis.call("TIME")
     epoch = tostring(t[1])
     redis.call("HSET", state_key, "epoch", epoch, "version", 0)
 end
+-- Increment version atomically using HINCRBY
+local version = redis.call("HINCRBY", state_key, "version", 1)
 -- Always update TTL regardless of whether state is new or existing
 redis.call("EXPIRE", state_key, 86400) -- Set TTL (24 hours, adjust as needed)
 
--- Increment version atomically using HINCRBY
-local version = redis.call("HINCRBY", state_key, "version", 1)
-
+-- Get leaderboard data
+local members = redis.call('ZREVRANGE', leaderboard_key, 0, -1, 'WITHSCORES')
 local leaders = {}
 for i = 1, #members, 2 do
     table.insert(leaders, { name = members[i], score = tonumber(members[i+1]) })
@@ -40,5 +38,6 @@ local publish_payload = {
 
 -- Add to stream which is consumed by Centrifugo.
 local payload = cjson.encode(publish_payload)
-redis.call('XADD', stream_key, 'MAXLEN', '~', 10000, '*', 'method', 'publish', 'payload', payload)
+redis.call('XADD', stream_key, 'MAXLEN', '~', 10000, '*', 
+  'method', 'publish', 'payload', payload)
 return members

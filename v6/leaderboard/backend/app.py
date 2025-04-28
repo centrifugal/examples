@@ -4,7 +4,7 @@ import redis
 
 
 def main():
-    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+    r = redis.Redis(host='redis', port=6379)
 
     with open('lua/update_leaderboard.lua', 'r') as f:
         lua_script = f.read()
