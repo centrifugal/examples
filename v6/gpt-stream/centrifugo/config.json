@@ -1,6 +1,12 @@
 {
+  "http_api": {
+    "key": "secret"
+  },
   "client": {
     "allowed_origins": ["*"],
     "insecure": true
+  },
+  "log": {
+    "level": "debug"
   }
 }

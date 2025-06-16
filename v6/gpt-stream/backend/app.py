@@ -5,11 +5,13 @@ import httpx
 import os
 
 app = FastAPI()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-CENTRIFUGO_API_URL = "http://centrifugo:8000/api"
-CENTRIFUGO_API_KEY = os.getenv("CENTRIFUGO_HTTP_API_KEY")
+client = None
+if os.getenv("OPENAI_API_KEY"):
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+CENTRIFUGO_HTTP_API_URL = "http://centrifugo:8000/api"
+CENTRIFUGO_HTTP_API_KEY = "secret"
 
 class Command(BaseModel):
     text: str
@@ -31,6 +33,12 @@ async def handle_command(cmd: Command):
     text = cmd.text
     channel = cmd.channel
 
+    if not client:
+        await publish_message(
+            channel,
+            StreamMessage(text=f"⚠️ Error: OPENAI_API_KEY env is not set", done=True).model_dump()
+        )
+
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -42,16 +50,16 @@ async def handle_command(cmd: Command):
             if token:
                 await publish_message(
                     channel,
-                    StreamMessage(text=token, done=False).dict()
+                    StreamMessage(text=token, done=False).model_dump()
                 )
         await publish_message(
             channel,
-            StreamMessage(text=token, done=True).dict()
+            StreamMessage(text=token, done=True).model_dump()
         )
     except Exception as e:
         await publish_message(
             channel,
-            StreamMessage(text=f"⚠️ Error: {e}", done=True).dict()
+            StreamMessage(text=f"⚠️ Error: {e}", done=True).model_dump()
         )
 
 
@@ -62,9 +70,10 @@ async def publish_message(channel, stream_message):
     }
 
     headers = {
-        "Authorization": f"apikey {CENTRIFUGO_API_KEY}",
+        "X-API-Key": f"{CENTRIFUGO_HTTP_API_KEY}",
         "Content-Type": "application/json"
     }
 
     async with httpx.AsyncClient() as http_client:
-        await http_client.post(f"{CENTRIFUGO_API_URL}/publish", json=payload, headers=headers)
+        await http_client.post(
+            f"{CENTRIFUGO_HTTP_API_URL}/publish", json=payload, headers=headers)
