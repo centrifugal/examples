@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat with GPT Streaming</title>
+  <script src="https://unpkg.com/centrifuge@5.3.5/dist/centrifuge.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-start py-6 px-4">
+  <div class="w-full max-w-2xl bg-white shadow-lg rounded-xl overflow-hidden border">
+    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 text-xl font-bold">
+      🧠 Chat with GPT Streaming
+    </div>
+    <div id="chat" class="h-96 overflow-y-auto p-4 space-y-2 text-sm bg-gray-50"></div>
+    <div class="border-t px-4 py-3 bg-white flex gap-2">
+      <input id="input" type="text" placeholder="Type your question..."
+        class="flex-1 border rounded-lg px-4 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        onkeydown="if(event.key === 'Enter') handleSend()" />
+      <button onclick="handleSend()"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const USER = "User_" + Math.floor(Math.random() * 1000);
+    const BACKEND_URL = "/api/execute";
+    const CENTRIFUGO_WS = "ws://" + location.host + "/connection/websocket";
+    const centrifuge = new Centrifuge(CENTRIFUGO_WS);
+    centrifuge.connect();
+
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("input");
+
+    function appendMessage(text, id = null, type = "user") {
+      let el = id ? document.getElementById(id) : null;
+      if (!el) {
+        el = document.createElement("div");
+        el.className = `msg px-3 py-2 rounded-lg max-w-full break-words ${
+          type === "user" ? "bg-blue-100 text-blue-800 self-end ml-auto" : "bg-gray-200 text-gray-800"
+        }`;
+        el.id = id || "";
+        chat.appendChild(el);
+      }
+
+      el.innerHTML = text.replace(/\n/g, '<br>');
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function handleStreamSubscription(channel, replyId) {
+      const sub = centrifuge.newSubscription(channel);
+      let reply = "";
+
+      sub.on("publication", ctx => {
+        const msg = ctx.data;
+        if (msg.text) {
+          const token = msg.text || "";
+          reply += token;
+          appendMessage(`GPTBot: ${reply}`, replyId, "bot");
+        }
+        if (msg.done) {
+          sub.unsubscribe();
+        }
+      });
+
+      sub.subscribe();
+      await sub.ready();
+    }
+
+    async function handleSend() {
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      const msgId = crypto.randomUUID();
+      const channel = `stream_${msgId}`;
+
+      appendMessage(`${USER}: ${text}`, null, "user");
+
+      const cmd = {
+        text: text,
+        channel: channel,
+      };
+
+      await handleStreamSubscription(channel, msgId);
+
+      await fetch(BACKEND_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cmd)
+      });
+    }
+  </script>
+</body>
+</html>

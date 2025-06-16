@@ -1,0 +1,6 @@
+{
+  "client": {
+    "allowed_origins": ["*"],
+    "insecure": true
+  }
+}
