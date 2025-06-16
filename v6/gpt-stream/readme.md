@@ -1,14 +1,5 @@
 # 🧠 Chat with GPT Streaming
 
-A full-stack real-time chat app powered by:
-
-- **Centrifugo** for realtime message delivery
-- **FastAPI** (async) backend for handling chat and AI requests
-- **OpenAI** for LLM responses
-- **Streaming token delivery** via temporary Centrifugo channels
-
----
-
 ## 🧰 Tech Stack
 
 - **FastAPI** – async backend with streaming support
