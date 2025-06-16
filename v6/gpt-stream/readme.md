@@ -15,7 +15,6 @@
 1. Create `.env` file in example root and fill in:
 
 ```env
-CENTRIFUGO_HTTP_API_KEY="secret"
 OPENAI_API_KEY="<YOUR_OPEN_AI_TOKEN>"
 ```
 
