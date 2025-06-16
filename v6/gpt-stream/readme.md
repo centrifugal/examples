@@ -1,21 +1,11 @@
-# 🧠 MCP Chat with GPT Streaming
+# 🧠 Chat with GPT Streaming
 
 A full-stack real-time chat app powered by:
 
 - **Centrifugo** for realtime message delivery
 - **FastAPI** (async) backend for handling chat and AI requests
 - **OpenAI** for LLM responses
-- **Streaming token delivery** via temporary Centrifugo channels using the MCP (Message Communication Protocol)
-
----
-
-## 🚀 Features
-
-- ✅ Realtime chat using Centrifugo
-- ✅ `/ask` questions sent to OpenAI and streamed token-by-token
-- ✅ Frontend subscribes to a unique UUID-based stream channel per question
-- ✅ Stream ends cleanly with a `done: true` signal
-- ✅ Fully MCP-compliant message format
+- **Streaming token delivery** via temporary Centrifugo channels
 
 ---
 
@@ -29,32 +19,13 @@ A full-stack real-time chat app powered by:
 
 ---
 
-## 🗂 Directory Structure
-
-```
-project-root/
-├── backend/
-│ ├── app.py # FastAPI backend with streaming
-│ ├── Dockerfile
-│ └── requirements.txt
-├── frontend/
-│ └── index.html # HTML UI using Centrifuge.js
-├── centrifugo/
-│ └── config.json # Centrifugo config
-├── .env # Your API keys (gitignored)
-├── docker-compose.yml
-```
-
-
----
-
 ## ⚙️ Setup
 
-1. Copy `.env.example` to `.env` and fill in:
+1. Create `.env` file in example root and fill in:
 
 ```env
-CENTRIFUGO_API_KEY=your_centrifugo_api_key
-OPENAI_API_KEY=your_openai_key
+CENTRIFUGO_HTTP_API_KEY="secret"
+OPENAI_API_KEY="<YOUR_OPEN_AI_TOKEN>"
 ```
 
 Then:
@@ -63,18 +34,4 @@ Then:
 docker compose up --build
 ```
 
-Visit: http://localhost:3000
-
-## 🧪 Example
-
-Type:
-
-```bash
-/ask What is the capital of Japan?
-```
-
-Watch GPTBot stream:
-
-```bash
-GPTBot: The capital of Japan is Tokyo.
-```
+Visit: http://localhost:9000
