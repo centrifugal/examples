@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Simple SSE stream with Centrifugo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body>
+  Open Dev Tools to see SSE stream.
+
+  <script>
+    const TOKEN_URL = "/api/token";
+    const CENTRIFUGO_SSE_ENDPOINT = "/connection/uni_sse";
+
+    async function getToken() {
+      try {
+        const response = await fetch(TOKEN_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const data = await response.json();
+        return data.token;
+      } catch (error) {
+        console.error('Error fetching token:', error);
+        throw error;
+      }
+    }
+
+    const onMessage = (message) => {
+      const push = JSON.parse(message);
+      if (push.connect) {
+        // handle connect push.
+      } else if (push.pub) {
+        // handle publication push.
+        console.log('Channel publication:', push.pub);
+      } else if (Object.keys(push).length === 0) {
+        // handle ping push.
+      } else {
+        // Ignore other pushes.
+      }
+    };
+
+    let eventSource = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    const reconnectDelay = 2000; // 2 seconds
+
+    function closeConnection() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+    }
+
+    async function startSSEConnection() {
+      try {
+        closeConnection();
+        
+        const token = await getToken();
+        console.log('Received token, connecting...');
+        
+        eventSource = new EventSource(`${CENTRIFUGO_SSE_ENDPOINT}?cf_connect=${encodeURIComponent(JSON.stringify({token}))}`);
+        
+        eventSource.onopen = function(event) {
+          console.log('SSE connection opened');
+          reconnectAttempts = 0; // Reset counter on successful connection
+        };
+        
+        eventSource.onmessage = function(event) {
+          onMessage(event.data);
+        };
+        
+        eventSource.onerror = function(event) {
+          console.error('SSE connection error, will attempt to reconnect...');
+          closeConnection();
+          
+          if (reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++;
+            console.log(`Reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts} in ${reconnectDelay}ms`);
+            setTimeout(startSSEConnection, reconnectDelay);
+          } else {
+            console.error('Max reconnection attempts reached');
+          }
+        };
+        
+      } catch (error) {
+        console.error('Failed to start SSE connection:', error);
+        
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          console.log(`Retrying connection in ${reconnectDelay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
+          setTimeout(startSSEConnection, reconnectDelay);
+        }
+      }
+    }
+
+    startSSEConnection();
+  </script>
+</body>
+</html>

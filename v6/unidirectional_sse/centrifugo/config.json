@@ -1,0 +1,17 @@
+{
+  "http_api": {
+    "key": "secret"
+  },
+  "client": {
+    "allowed_origins": ["*"],
+    "token": {
+      "hmac_secret_key": "secret"
+    }    
+  },
+  "log": {
+    "level": "debug"
+  },
+  "uni_sse": {
+    "enabled": true
+  }
+}
