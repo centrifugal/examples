@@ -18,7 +18,7 @@
   <script type="text/javascript">
     var address = '{{protocol}}://{{centrifuge_address}}/connection/websocket';
   </script>
-  <script type="text/javascript" src="https://unpkg.com/centrifuge@5.3.2/dist/centrifuge.js"></script>
+  <script type="text/javascript" src="https://unpkg.com/centrifuge@5.5.0/dist/centrifuge.js"></script>
   <script type="text/javascript">
     // helper functions to work with escaping html.
     const tagsToReplace = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
@@ -135,6 +135,12 @@
         });
       }
 
+      // const tagsFilter = {
+      //     key: "ticker",
+      //     cmp: "eq",
+      //     val: "TSL"
+      // };
+
       // subscribe on channel and bind various event listeners. Actual
       // subscription request will be firer after client will connect to
       // Centrifugo and will be authorized.
@@ -143,6 +149,7 @@
         getToken: function (ctx) {
           return getToken('/centrifuge/subscribe', ctx);
         },
+        // tagsFilter: tagsFilter
       });
 
       sub.on('publication', handleMessage)
