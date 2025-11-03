@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div id="chat-screen" class="container">
+  <div class="header">
+    <h1>htmx with Centrifugo Chat Demo</h1>
+    <div class="user-info">
+      <span>Logged in as: <span class="username">{{ username }}</span></span>
+      <button class="logout-btn" hx-post="/auth/logout" hx-target="#content" hx-swap="innerHTML">Logout</button>
+    </div>
+    <span id="status" class="status connecting">Connecting...</span>
+  </div>
+
+  <!-- Main chat container with Centrifugo connection -->
+  <div hx-ext="centrifugo"
+       id="centrifugo-container"
+       centrifugo-ws-endpoint="/connection/websocket"
+       centrifugo-http-stream-endpoint="/connection/http_stream"
+       centrifugo-sse-endpoint="/connection/sse"
+       centrifugo-token="{{ token }}"
+       centrifugo-connect
+       centrifugo-debug="true"
+       hx-on:htmx:centrifugo-connecting="document.getElementById('status').className='status connecting'; document.getElementById('status').textContent='Connecting...';"
+       hx-on:htmx:centrifugo-connected="document.getElementById('status').className='status connected'; document.getElementById('status').textContent='Connected (' + (event.detail.transport || 'unknown') + ')';"
+       hx-on:htmx:centrifugo-disconnected="document.getElementById('status').className='status disconnected'; document.getElementById('status').textContent='Disconnected';"
+       class="chat-container">
+
+    <!-- Messages area - subscribes to 'chat' channel -->
+    <div id="messages"
+         centrifugo-subscribe="chat"
+         centrifugo-swap="beforeend"
+         hx-get="/api/messages?channel=chat&limit=50"
+         hx-trigger="load"
+         hx-swap="innerHTML show:bottom"
+         hx-on::after-settle="this.scrollTo(0, this.scrollHeight);"
+         hx-on:htmx:after-settle="this.scrollTo(0, this.scrollHeight);">
+      <div class="message">
+        <div class="message-author">System</div>
+        <div class="message-text">Loading chat history...</div>
+        <div class="message-time">Just now</div>
+      </div>
+    </div>
+
+    <!-- Input area -->
+    <div class="input-area">
+      <form centrifugo-send
+            centrifugo-method="rpc"
+            centrifugo-rpc-method="sendChatMessage"
+            class="input-group">
+        <input type="text"
+               name="message"
+               placeholder="Type your message..."
+               required
+               autocomplete="off">
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

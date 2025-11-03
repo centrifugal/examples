@@ -1,0 +1,40 @@
+{
+  "client": {
+    "allowed_origins": ["http://localhost:3000"],
+    "token": {
+      "hmac_secret_key": "my-secret-key"
+    }
+  },
+  "http_api": {
+    "key": "my-api-key"
+  },
+  "admin": {
+    "enabled": true,
+    "password": "admin",
+    "secret": "admin-secret"
+  },
+  "websocket": {},
+  "sse": {
+    "enabled": true
+  },
+  "http_stream": {
+    "enabled": true
+  },
+  "rpc": {
+    "proxy": {
+      "endpoint": "http://backend:4000/centrifugo/rpc"
+    },
+    "without_namespace": {
+      "proxy_enabled": true
+    }
+  },
+  "channel": {
+    "without_namespace": {
+      "allow_subscribe_for_client": true,
+      "allow_publish_for_client": false,
+      "history_size": 100,
+      "history_ttl": "300s",
+      "force_recovery": true
+    }
+  }
+}

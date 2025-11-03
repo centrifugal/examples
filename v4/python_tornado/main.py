@@ -53,6 +53,7 @@ class IndexHandler(tornado.web.RequestHandler):
 
 def get_connection_token():
     return jwt.encode({
+        "iss": "python-example",
         "sub": USER_ID,
         "info": INFO,
         # 10 secs expiration is pretty small and can result into more load at scale,
@@ -141,7 +142,7 @@ class CentrifugeRefreshHandler(tornado.web.RequestHandler):
 
     def post(self):
         # raise tornado.web.HTTPError(403)
-        logging.info("client wants to refresh its connection parameters")
+        logging.info(f"client wants to refresh its connection parameters: {self.request.body}, headers:\n{self.request.headers}")
         self.set_header('Content-Type', 'application/json; charset="utf-8"')
         self.write(json.dumps({
             'token': get_connection_token()
