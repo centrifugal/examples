@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div id="login-screen" class="login-container">
+  <h2>Join the Chat</h2>
+  <p style="text-align: center; color: #6c757d; margin-bottom: 20px;">
+    Enter your username to start chatting
+  </p>
+  {% if error %}
+  <div class="login-error">
+    {{ error }}
+  </div>
+  {% else %}
+  <div id="login-error" class="login-error hidden"></div>
+  {% endif %}
+  <form hx-post="/auth/login" hx-target="#content" hx-swap="innerHTML" class="login-form">
+    <label for="username">Username:</label>
+    <input
+      type="text"
+      id="username"
+      name="username"
+      placeholder="Enter your username..."
+      required
+      autocomplete="off"
+      minlength="1"
+      maxlength="50">
+    <button type="submit">Join Chat</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # FastAPI backend server for handling RPC calls
+  backend:
+    build: ./backend
+    environment:
+      - CENTRIFUGO_API_URL=http://centrifugo:8000/api
+      - CENTRIFUGO_API_KEY=my-api-key
+      - CENTRIFUGO_TOKEN_SECRET=my-secret-key
+      - PORT=4000
+      - DATABASE_URL=sqlite+aiosqlite:////data/chat.db
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend:/app
+      - backend-data:/data
+    networks:
+      - htmx-centrifugo
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health')"]
+      interval: 1s
+      timeout: 1s
+      retries: 30
+      start_period: 1s
+
+  # Centrifugo real-time messaging server
+  centrifugo:
+    image: centrifugo/centrifugo:v6
+    command: centrifugo --config=/centrifugo/config.json
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./centrifugo-config.json:/centrifugo/config.json
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - htmx-centrifugo
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8000/"]
+      interval: 1s
+      timeout: 1s
+      retries: 30
+
+  # Web server for serving examples
+  web:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./examples:/usr/share/nginx/html/examples
+      - ./src:/usr/share/nginx/html/src
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      centrifugo:
+        condition: service_healthy
+    networks:
+      - htmx-centrifugo
+
+networks:
+  htmx-centrifugo:
+    driver: bridge
+
+volumes:
+  backend-data:
