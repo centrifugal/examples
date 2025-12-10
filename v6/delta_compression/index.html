@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centrifugo Delta Compression Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .panel {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+        }
+        .panel h2 {
+            margin-top: 0;
+            font-size: 1.2em;
+            color: #555;
+        }
+        #messages {
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .message {
+            padding: 8px;
+            margin: 5px 0;
+            background-color: #f8f9fa;
+            border-left: 3px solid #007bff;
+        }
+        .message.delta {
+            border-left-color: #28a745;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .stat-item {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+        }
+        pre {
+            margin: 5px 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>Centrifugo Delta Compression Example</h1>
+
+    <div id="status" class="status disconnected">
+        Disconnected
+    </div>
+
+    <div class="container">
+        <div class="panel">
+            <h2>Latest Publication</h2>
+            <div id="latestData"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Statistics</h2>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-label">Total Messages</div>
+                    <div class="stat-value" id="totalMessages">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel" style="margin-top: 20px;">
+        <h2>Message Log</h2>
+        <div id="messages"></div>
+    </div>
+
+    <script src="https://unpkg.com/centrifuge@5.2.2/dist/centrifuge.js"></script>
+    <script>
+        const wsEndpoint = "ws://" + window.location.host + "/connection/websocket";
+        const channel = "updates:data";
+
+        let totalMessages = 0;
+
+        function updateStats() {
+            document.getElementById('totalMessages').textContent = totalMessages;
+        }
+
+        function addMessage(text) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = '<pre>' + text + '</pre>';
+            messagesDiv.insertBefore(messageDiv, messagesDiv.firstChild);
+
+            // Keep only last 50 messages
+            while (messagesDiv.children.length > 50) {
+                messagesDiv.removeChild(messagesDiv.lastChild);
+            }
+        }
+
+        const centrifuge = new Centrifuge(wsEndpoint, {
+            debug: true,
+        });
+
+        // We are using cache recovery feature in the example, passing since: {} allows to trigger recovery
+        // on initial subscribe. For cache recovery the previous stream position does not matter - server
+        // just tries to extract latest publication from channel history and send it to client.
+        let subOptions = {
+            delta: "fossil"
+        };
+
+        const sub = centrifuge.newSubscription(channel, subOptions);
+
+        sub.on("publication", (ctx) => {
+            console.log("Publication received:", ctx);
+
+            totalMessages++;
+
+            addMessage('publication received (offset: ' + ctx.offset + '):\n');
+            document.getElementById('latestData').innerHTML = '<pre>' + JSON.stringify(ctx.data, null, 2) + '</pre>';
+
+            updateStats();
+        });
+
+        sub.on("subscribed", (ctx) => {
+            console.log("Subscribed to channel:", ctx);
+            addMessage('Subscribed to ' + channel + ' with delta compression enabled');
+        });
+
+        sub.on("error", (ctx) => {
+            console.error("Subscription error:", ctx);
+            addMessage('ERROR: ' + JSON.stringify(ctx));
+        });
+
+        centrifuge.on("connected", (ctx) => {
+            console.log("Connected to Centrifugo:", ctx);
+            document.getElementById('status').className = 'status connected';
+            document.getElementById('status').textContent = 'Connected to Centrifugo';
+            addMessage('Connected to Centrifugo (client: ' + ctx.client + ')');
+        });
+
+        centrifuge.on("disconnected", (ctx) => {
+            console.log("Disconnected from Centrifugo:", ctx);
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').textContent = 'Disconnected from Centrifugo';
+            addMessage('Disconnected from Centrifugo');
+        });
+
+        sub.subscribe();
+        centrifuge.connect();
+
+        function reconnectLoop() {
+            setTimeout(() => {
+                centrifuge.disconnect();
+
+                setTimeout(() => {
+                    centrifuge.connect();
+                    reconnectLoop();   // repeat indefinitely.
+                }, 200);
+
+            }, 200);
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        console.log(params)
+        if (params.get("reconnect_loop") === "1") {
+            reconnectLoop();
+        }
+    </script>
+</body>
+</html>

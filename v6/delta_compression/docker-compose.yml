@@ -1,0 +1,35 @@
+services:
+  centrifugo:
+    container_name: centrifugo
+    image: centrifugo/centrifugo:v6
+    volumes:
+      - ./config.json:/centrifugo/config.json
+    command: centrifugo -c config.json
+    ports:
+      - 8000:8000
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+
+  web:
+    container_name: web
+    image: nginx:alpine
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - 8080:80
+    depends_on:
+      - centrifugo
+
+  publisher:
+    container_name: publisher
+    build:
+      context: .
+      dockerfile: Dockerfile.publisher
+    environment:
+      - CENTRIFUGO_API_URL=http://centrifugo:8000/api/publish
+      - CENTRIFUGO_API_KEY=my_api_key
+    depends_on:
+      - centrifugo

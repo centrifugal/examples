@@ -1,0 +1,29 @@
+{
+  "client": {
+    "insecure": true,
+    "token": {
+      "hmac_secret_key": "my_secret"
+    },
+    "allowed_origins": ["*"]
+  },
+  "http_api": {
+    "key": "my_api_key"
+  },
+  "admin": {
+    "password": "password",
+    "secret": "secret",
+    "enabled": true
+  },
+  "channel": {
+    "namespaces": [
+      {
+        "name": "updates",
+        "allowed_delta_types": ["fossil"],
+        "force_positioning": true,
+        "history_size": 10,
+        "history_ttl": "300s",
+        "delta_publish": true
+      }
+    ]
+  }
+}
