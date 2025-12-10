@@ -5,8 +5,7 @@ This example demonstrates Centrifugo's delta compression feature using the Fossi
 ## Features
 
 - **Delta Compression**: Uses Fossil algorithm to compress message payloads
-- **Real-time Updates**: Publisher sends incremental state updates every 2 seconds
-- **Visual Feedback**: Web UI shows delta vs full messages with statistics
+- **Real-time Updates**: Publisher sends incremental state updates frequently
 - **Docker Compose**: Easy setup with all services containerized
 
 ## How It Works
@@ -64,19 +63,12 @@ Key settings:
 3. You should see:
    - Connection status indicator
    - Latest publication data
-   - Statistics showing total, delta, and full messages
-   - Message log showing each publication
+   - Statistics showing total messages
+   - Event log
 
 **Note**: The example uses nginx to serve the HTML and proxy WebSocket connections to Centrifugo. Any changes you make to `index.html` will be visible immediately on browser refresh (no Docker restart required).
 
 4. Open browser Developer Tools (Network tab) to inspect WebSocket frames and see the size difference between full messages and deltas.
-
-## What to Observe
-
-- **First Message**: Will be a full publication (no delta)
-- **Subsequent Messages**: Will be delta-compressed (much smaller)
-- **Statistics Panel**: Shows the ratio of delta vs full messages
-- **Message Log**: Indicates which messages are deltas (green border) vs full (blue border)
 
 ## How to Test Delta Compression Effectiveness
 
@@ -86,11 +78,11 @@ Key settings:
 4. View the "Messages" tab
 5. Compare the size of the first message (full) vs subsequent messages (deltas)
 
-You should see that delta messages are significantly smaller than full messages, especially for the data structure used in this example where only a few fields change between updates.
+You should see that delta messages are significantly smaller than full messages.
 
 ## Publisher Details
 
-The publisher script (`publisher.py`) sends updates every 2 seconds with:
+The publisher script (`publisher.py`) sends updates periodically:
 - Incrementing counter
 - Slightly modified metrics (CPU, memory, disk, network)
 - Occasionally added events
