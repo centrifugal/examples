@@ -1,0 +1,35 @@
+{
+  "client": {
+    "insecure": true,
+    "allowed_origins": ["*"]
+  },
+  "http_api": {
+    "key": "secret"
+  },
+  "engine": {
+    "type": "redis",
+    "redis": {
+      "address": "redis:6379"
+    }
+  },
+  "sse": {
+    "enabled": true
+  },
+  "http_stream": {
+    "enabled": true
+  },
+  "channel": {
+    "namespaces": [
+      {
+        "name": "ai",
+        "history_size": 500,
+        "history_ttl": "300s",
+        "force_recovery": true,
+        "allow_subscribe_for_client": true
+      }
+    ]
+  },
+  "log": {
+    "level": "debug"
+  }
+}

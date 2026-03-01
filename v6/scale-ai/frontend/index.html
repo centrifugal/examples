@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Token Streaming Playground</title>
+  <script src="https://unpkg.com/centrifuge@5.5.3/dist/centrifuge.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    .cursor-blink { animation: blink 0.8s step-end infinite; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #818cf8; cursor: pointer; }
+    input[type="range"] { -webkit-appearance: none; height: 6px; border-radius: 3px; background: #374151; outline: none; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-200 min-h-screen flex flex-col items-center py-8 px-4">
+
+  <div class="w-full max-w-3xl space-y-4">
+    <h1 class="text-2xl font-bold text-white">AI Token Streaming Playground</h1>
+
+    <!-- Controls -->
+    <div id="controls-panel" class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Tokens/sec -->
+        <div>
+          <label class="text-sm text-gray-400 flex justify-between">
+            <span>Tokens per second</span>
+            <span id="tps-val" class="text-indigo-400 font-mono">30</span>
+          </label>
+          <input type="range" id="tps" min="5" max="100" value="30" class="w-full mt-1" oninput="document.getElementById('tps-val').textContent=this.value">
+        </div>
+        <!-- Total tokens -->
+        <div>
+          <label class="text-sm text-gray-400 flex justify-between">
+            <span>Total tokens</span>
+            <span id="total-val" class="text-indigo-400 font-mono">100</span>
+          </label>
+          <input type="range" id="total" min="20" max="500" value="100" class="w-full mt-1" oninput="document.getElementById('total-val').textContent=this.value">
+        </div>
+      </div>
+
+      <!-- Aggregation -->
+      <div class="flex items-center gap-4">
+        <label class="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+          <input type="checkbox" id="agg-toggle" class="accent-indigo-500" onchange="document.getElementById('agg-slider').classList.toggle('hidden', !this.checked)">
+          <span>Publisher-side aggregation</span>
+        </label>
+        <div id="agg-slider" class="hidden flex items-center gap-2">
+          <input type="range" id="agg-size" min="2" max="20" value="5" class="w-32" oninput="document.getElementById('agg-val').textContent=this.value">
+          <span id="agg-val" class="text-indigo-400 font-mono text-sm">5</span>
+          <span class="text-gray-500 text-xs">tokens/msg</span>
+        </div>
+      </div>
+
+      <!-- Transport + Start -->
+      <div class="flex flex-wrap items-center gap-3">
+        <select id="transport" class="bg-gray-800 border border-gray-700 text-sm rounded-lg px-3 py-2 text-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
+          <option value="websocket">WebSocket</option>
+          <option value="http_stream">HTTP Streaming</option>
+          <option value="sse">SSE</option>
+        </select>
+        <button id="start-btn" onclick="startStream()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2 rounded-lg transition-colors">
+          Start Stream
+        </button>
+      </div>
+    </div>
+
+    <!-- Question display -->
+    <div id="question-panel" class="bg-gray-900 border border-indigo-900/50 rounded-xl p-4 hidden">
+      <div class="text-xs text-indigo-400 uppercase tracking-wide mb-1">Question</div>
+      <div id="question-text" class="text-white text-sm"></div>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div class="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-center">
+        <div class="text-xs text-gray-500 uppercase tracking-wide">Messages</div>
+        <div id="stat-messages" class="text-lg font-mono text-white">0</div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-center">
+        <div class="text-xs text-gray-500 uppercase tracking-wide">Tokens</div>
+        <div id="stat-tokens" class="text-lg font-mono text-white">0</div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-center">
+        <div class="text-xs text-gray-500 uppercase tracking-wide">Channel</div>
+        <div id="stat-channel" class="text-sm font-mono text-gray-400 truncate">&mdash;</div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-center">
+        <div class="text-xs text-gray-500 uppercase tracking-wide">Transport</div>
+        <div id="stat-transport" class="text-sm font-mono text-gray-400">&mdash;</div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-center">
+        <div class="text-xs text-gray-500 uppercase tracking-wide">Status</div>
+        <div id="stat-status" class="text-sm font-mono text-gray-400">disconnected</div>
+      </div>
+    </div>
+
+    <!-- Output area -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 min-h-[200px] max-h-[400px] overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap" id="output"><span id="cursor" class="cursor-blink text-indigo-400 hidden">|</span></div>
+
+    <!-- Action buttons -->
+    <div class="flex flex-wrap gap-3">
+      <button id="disconnect-btn" onclick="simulateDisconnect()" disabled class="bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 px-4 py-2 rounded-lg text-sm transition-colors">
+        Simulate Disconnect
+      </button>
+      <button id="newtab-btn" onclick="openInNewTab()" disabled class="bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 px-4 py-2 rounded-lg text-sm transition-colors">
+        Open in New Tab
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // --- State ---
+    let centrifuge = null;
+    let subscription = null;
+    let notifSubscription = null;
+    let currentChannel = null;
+    let currentStreamId = null;
+    let messageCount = 0;
+    let tokenCount = 0;
+    let streamDone = false;
+    let startingStream = false;
+    let disconnected = false;
+
+    const cursor = document.getElementById('cursor');
+    const outputEl = document.getElementById('output');
+
+    // --- Question display ---
+    function showQuestion(question) {
+      const panel = document.getElementById('question-panel');
+      document.getElementById('question-text').textContent = question;
+      panel.classList.remove('hidden');
+    }
+
+    // --- Transport helpers ---
+    function buildTransports(type) {
+      const host = location.host;
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const httpProto = location.protocol === 'https:' ? 'https:' : 'http:';
+      switch (type) {
+        case 'websocket':
+          return [{ transport: 'websocket', endpoint: `${proto}//${host}/connection/websocket` }];
+        case 'http_stream':
+          return [{ transport: 'http_stream', endpoint: `${httpProto}//${host}/connection/http_stream` }];
+        case 'sse':
+          return [{ transport: 'sse', endpoint: `${httpProto}//${host}/connection/sse` }];
+      }
+    }
+
+    function createCentrifuge(transportType) {
+      if (centrifuge) {
+        centrifuge.disconnect();
+      }
+      const transports = buildTransports(transportType);
+      const opts = {};
+      if (transportType !== 'websocket') {
+        opts.emulationEndpoint = `${location.protocol}//${location.host}/emulation`;
+      }
+      centrifuge = new Centrifuge(transports, opts);
+      centrifuge.on('connecting', () => {
+        const el = document.getElementById('stat-status');
+        el.textContent = 'connecting';
+        el.className = 'text-sm font-mono text-yellow-400';
+      });
+      centrifuge.on('connected', (ctx) => {
+        document.getElementById('stat-transport').textContent = ctx.transport;
+        const el = document.getElementById('stat-status');
+        el.textContent = 'connected';
+        el.className = 'text-sm font-mono text-green-400';
+      });
+      centrifuge.on('disconnected', () => {
+        document.getElementById('stat-transport').textContent = '\u2014';
+        const el = document.getElementById('stat-status');
+        el.textContent = 'disconnected';
+        el.className = 'text-sm font-mono text-red-400';
+      });
+      centrifuge.connect();
+    }
+
+    // --- Stats ---
+    function updateStats() {
+      document.getElementById('stat-messages').textContent = messageCount;
+      document.getElementById('stat-tokens').textContent = tokenCount;
+    }
+
+    // --- Append helpers ---
+    function appendText(text) {
+      const prev = cursor.previousSibling;
+      if (prev && prev.nodeType === Node.TEXT_NODE) {
+        prev.textContent += text;
+      } else {
+        outputEl.insertBefore(document.createTextNode(text), cursor);
+      }
+      outputEl.scrollTop = outputEl.scrollHeight;
+    }
+
+    function appendMarker(text, color) {
+      const span = document.createElement('span');
+      span.className = `font-bold ${color}`;
+      span.textContent = text;
+      outputEl.insertBefore(span, cursor);
+      outputEl.scrollTop = outputEl.scrollHeight;
+    }
+
+    function clearOutput() {
+      while (outputEl.firstChild !== cursor) {
+        outputEl.removeChild(outputEl.firstChild);
+      }
+    }
+
+    // --- Process publication ---
+    function processPublication(ctx) {
+      const msg = ctx.data;
+      if (msg.text) {
+        appendText(msg.text + ' ');
+        const wordCount = msg.text.split(/\s+/).filter(w => w.length > 0).length;
+        tokenCount += wordCount;
+        messageCount++;
+        updateStats();
+      }
+      if (msg.done) {
+        streamDone = true;
+        cursor.classList.add('hidden');
+        appendMarker(' [END]', 'text-gray-500');
+        document.getElementById('disconnect-btn').disabled = true;
+        document.getElementById('controls-panel').classList.remove('opacity-60');
+        document.getElementById('start-btn').disabled = false;
+        subscription.unsubscribe();
+        centrifuge.removeSubscription(subscription);
+        subscription = null;
+      }
+    }
+
+    // --- Subscribe to channel ---
+    function subscribeTo(channel, withCatchUp) {
+      if (subscription) {
+        subscription.unsubscribe();
+        centrifuge.removeSubscription(subscription);
+        subscription = null;
+      }
+
+      currentChannel = channel;
+      document.getElementById('stat-channel').textContent = channel;
+
+      // When catching up on an active stream, subscribe with since {offset: 0, epoch: ''}
+      // so Centrifugo delivers all existing history through normal recovery flow,
+      // then continues with live publications — no separate history() call needed.
+      const opts = {};
+      if (withCatchUp) {
+        opts.since = { offset: 0, epoch: '' };
+      }
+      subscription = centrifuge.newSubscription(channel, opts);
+
+      subscription.on('publication', (ctx) => {
+        processPublication(ctx);
+      });
+
+      subscription.on('subscribed', (ctx) => {
+        if (disconnected) {
+          disconnected = false;
+          if (ctx.wasRecovering && ctx.recovered) {
+            appendMarker(' [RECOVERED] ', 'text-green-400');
+          } else if (ctx.wasRecovering && !ctx.recovered) {
+            appendMarker(' [RECOVERY FAILED] ', 'text-red-400');
+          }
+        }
+      });
+
+      subscription.subscribe();
+    }
+
+    // --- Start stream ---
+    async function startStream() {
+      const tps = parseInt(document.getElementById('tps').value);
+      const total = parseInt(document.getElementById('total').value);
+      const aggEnabled = document.getElementById('agg-toggle').checked;
+      const aggSize = aggEnabled ? parseInt(document.getElementById('agg-size').value) : 1;
+
+      resetForNewStream();
+      cursor.classList.remove('hidden');
+
+      // Flag prevents the notification handler from also joining this stream
+      // during the await — the starting tab handles its own subscription.
+      startingStream = true;
+      const res = await fetch('/api/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tokens_per_second: tps,
+          total_tokens: total,
+          aggregate_size: aggSize,
+        })
+      });
+      const data = await res.json();
+
+      currentStreamId = data.id;
+      startingStream = false;
+      showQuestion(data.question);
+
+      // Subscribe with catch-up — tokens may already be published by the time
+      // the POST returns, since the backend starts the stream task before responding.
+      subscribeTo(data.channel, true);
+
+      document.getElementById('controls-panel').classList.add('opacity-60');
+      document.getElementById('start-btn').disabled = true;
+      document.getElementById('disconnect-btn').disabled = false;
+      document.getElementById('newtab-btn').disabled = false;
+    }
+
+    // --- Simulate disconnect ---
+    function simulateDisconnect() {
+      if (!centrifuge || streamDone) return;
+      document.getElementById('disconnect-btn').disabled = true;
+
+      disconnected = true;
+      appendMarker(' [DISCONNECTED] ', 'text-red-400');
+      centrifuge.disconnect();
+
+      setTimeout(() => {
+        appendMarker(' [RECONNECTING...] ', 'text-yellow-400');
+        centrifuge.connect();
+        if (!streamDone) {
+          document.getElementById('disconnect-btn').disabled = false;
+        }
+      }, 2500);
+    }
+
+    // --- Open in new tab ---
+    function openInNewTab() {
+      if (!currentStreamId) return;
+      window.open(`${location.origin}?stream=${encodeURIComponent(currentStreamId)}`, '_blank');
+    }
+
+    // --- Transport change ---
+    document.getElementById('transport').addEventListener('change', (e) => {
+      const type = e.target.value;
+      const hadChannel = currentChannel;
+      const wasStreaming = !streamDone && currentChannel;
+
+      // Old subscriptions belong to the old centrifuge instance — discard references
+      // before creating a new instance. The old instance is disconnected and GC'd.
+      subscription = null;
+      notifSubscription = null;
+      createCentrifuge(type);
+      subscribeNotifications();
+
+      if (hadChannel && wasStreaming) {
+        subscribeTo(hadChannel, false);
+      }
+    });
+
+    // --- LocalStorage for controls ---
+    const STORAGE_KEY = 'ai-playground-controls';
+
+    function saveControls() {
+      const data = {
+        tps: document.getElementById('tps').value,
+        total: document.getElementById('total').value,
+        aggToggle: document.getElementById('agg-toggle').checked,
+        aggSize: document.getElementById('agg-size').value,
+        transport: document.getElementById('transport').value,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function loadControls() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        if (data.tps) { document.getElementById('tps').value = data.tps; document.getElementById('tps-val').textContent = data.tps; }
+        if (data.total) { document.getElementById('total').value = data.total; document.getElementById('total-val').textContent = data.total; }
+        if (data.aggToggle !== undefined) {
+          document.getElementById('agg-toggle').checked = data.aggToggle;
+          document.getElementById('agg-slider').classList.toggle('hidden', !data.aggToggle);
+        }
+        if (data.aggSize) { document.getElementById('agg-size').value = data.aggSize; document.getElementById('agg-val').textContent = data.aggSize; }
+        if (data.transport) { document.getElementById('transport').value = data.transport; }
+      } catch (e) {}
+    }
+
+    document.querySelectorAll('#controls-panel input, #controls-panel select').forEach(el => {
+      el.addEventListener('change', saveControls);
+      el.addEventListener('input', saveControls);
+    });
+
+    // Sync controls across tabs — the storage event fires on *other* tabs
+    // when localStorage changes, so no polling is needed.
+    window.addEventListener('storage', (e) => {
+      if (e.key === STORAGE_KEY) loadControls();
+    });
+
+    // --- Reset UI for a new stream ---
+    function resetForNewStream() {
+      if (subscription) {
+        subscription.unsubscribe();
+        centrifuge.removeSubscription(subscription);
+        subscription = null;
+      }
+      clearOutput();
+      messageCount = 0;
+      tokenCount = 0;
+      streamDone = false;
+      disconnected = false;
+      updateStats();
+      cursor.classList.add('hidden');
+      document.getElementById('question-panel').classList.add('hidden');
+    }
+
+    // --- Subscribe to notifications channel ---
+    function subscribeNotifications() {
+      if (notifSubscription) {
+        notifSubscription.unsubscribe();
+        centrifuge.removeSubscription(notifSubscription);
+      }
+      notifSubscription = centrifuge.newSubscription('ai:notifications');
+      notifSubscription.on('publication', (ctx) => {
+        const msg = ctx.data;
+        if (msg.type === 'stream_started' && msg.id !== currentStreamId && !startingStream) {
+          resetForNewStream();
+          document.getElementById('controls-panel').classList.add('opacity-60');
+          document.getElementById('start-btn').disabled = true;
+          joinStream({
+            id: msg.id,
+            channel: msg.channel,
+            question: msg.question,
+            status: 'streaming',
+          });
+        }
+      });
+      notifSubscription.subscribe();
+    }
+
+    // --- Join active/specific stream ---
+    async function joinStream(streamData) {
+      showQuestion(streamData.question);
+      currentStreamId = streamData.id;
+      document.getElementById('stat-channel').textContent = streamData.channel;
+      document.getElementById('newtab-btn').disabled = false;
+
+      if (streamData.status === 'done') {
+        // Stream already finished — show full answer from DB.
+        appendText(streamData.answer + ' ');
+        const wordCount = streamData.answer.split(/\s+/).filter(w => w.length > 0).length;
+        tokenCount = wordCount;
+        updateStats();
+        appendMarker(' [END]', 'text-gray-500');
+        streamDone = true;
+        return;
+      }
+
+      // Stream is active — subscribe with history catch-up.
+      cursor.classList.remove('hidden');
+      document.getElementById('disconnect-btn').disabled = false;
+      subscribeTo(streamData.channel, true);
+    }
+
+    // --- Init ---
+    (async function init() {
+      loadControls();
+      createCentrifuge(document.getElementById('transport').value);
+      subscribeNotifications();
+
+      const params = new URLSearchParams(location.search);
+      const streamId = params.get('stream');
+
+      if (streamId) {
+        // Joined via ?stream=ID link.
+        document.getElementById('controls-panel').classList.add('opacity-60');
+        document.getElementById('start-btn').disabled = true;
+
+        const res = await fetch(`/api/stream/${encodeURIComponent(streamId)}`);
+        const data = await res.json();
+        if (data.stream) {
+          await joinStream(data.stream);
+        }
+      } else {
+        // Fresh tab — check for active stream.
+        const res = await fetch('/api/stream/active');
+        const data = await res.json();
+        if (data.stream) {
+          if (data.stream.status === 'streaming') {
+            // Active stream — disable controls, join live.
+            document.getElementById('controls-panel').classList.add('opacity-60');
+            document.getElementById('start-btn').disabled = true;
+          }
+          await joinStream(data.stream);
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
