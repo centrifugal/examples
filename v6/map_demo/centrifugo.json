@@ -56,12 +56,12 @@
   "namespaces": [
     {
       "name": "cursors",
-      "subscription_types": ["map"],
+      "subscription_type": "map",
       "map_sync_mode": "ephemeral",
       "map_retention_mode": "expiring",
       "map_key_ttl": "60s",
       "publication_data_format": "json_object",
-      "map_remove_on_unsubscribe": true,
+      "map_remove_client_on_unsubscribe": true,
       "allow_subscribe_for_client": true,
       "allow_publish_for_client": true,
       "allow_map_publish_for_subscriber": true,
@@ -69,7 +69,7 @@
     },
     {
       "name": "games",
-      "subscription_types": ["map"],
+      "subscription_type": "map",
       "map_sync_mode": "converging",
       "map_retention_mode": "expiring",
       "map_key_ttl": "60s",
@@ -79,7 +79,7 @@
     },
     {
       "name": "game",
-      "subscription_types": ["map"],
+      "subscription_type": "map",
       "map_sync_mode": "converging",
       "map_retention_mode": "expiring",
       "map_key_ttl": "60s",
@@ -89,7 +89,7 @@
     },
     {
       "name": "clients",
-      "subscription_types": ["map_clients"],
+      "subscription_type": "map_clients",
       "map_sync_mode": "converging",
       "map_retention_mode": "expiring",
       "map_key_ttl": "60s",
@@ -97,7 +97,7 @@
     },
     {
       "name": "users",
-      "subscription_types": ["map_users"],
+      "subscription_type": "map_users",
       "map_sync_mode": "converging",
       "map_retention_mode": "expiring",
       "map_key_ttl": "60s",
@@ -105,7 +105,7 @@
     },
     {
       "name": "tickers",
-      "subscription_types": ["map"],
+      "subscription_type": "map",
       "map_sync_mode": "ephemeral",
       "map_retention_mode": "expiring",
       "map_key_ttl": "60s",
@@ -114,14 +114,14 @@
     },
     {
       "name": "inventory",
-      "subscription_types": ["map"],
+      "subscription_type": "map",
       "map_sync_mode": "converging",
       "map_retention_mode": "permanent",
       "allow_subscribe_for_client": true
     },
     {
       "name": "scoreboard",
-      "subscription_types": ["map"],
+      "subscription_type": "map",
       "map_sync_mode": "converging",
       "map_retention_mode": "permanent",
       "allowed_delta_types": ["fossil"],
@@ -129,21 +129,21 @@
     },
     {
       "name": "leaderboard",
-      "subscription_types": ["map"],
+      "subscription_type": "map",
       "map_sync_mode": "converging",
       "map_retention_mode": "permanent",
       "allow_subscribe_for_client": true
     },
     {
       "name": "poll",
-      "subscription_types": ["map"],
+      "subscription_type": "map",
       "map_sync_mode": "converging",
       "map_retention_mode": "permanent",
       "allow_subscribe_for_client": true
     },
     {
       "name": "board",
-      "subscription_types": ["map"],
+      "subscription_type": "map",
       "map_sync_mode": "converging",
       "map_retention_mode": "permanent",
       "map_ordered": true,
@@ -151,7 +151,7 @@
     },
     {
       "name": "visualizer",
-      "subscription_types": ["map"],
+      "subscription_type": "map",
       "map_sync_mode": "converging",
       "map_retention_mode": "permanent",
       "allow_subscribe_for_client": true
