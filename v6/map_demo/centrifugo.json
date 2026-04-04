@@ -7,8 +7,7 @@
   "client": {
     "allowed_origins": ["*"],
     "allow_anonymous_connect_without_token": true,
-    "insecure": true,
-    "map_pagination_min_limit": 1
+    "insecure": true
   },
 
   "http_api": {
@@ -17,7 +16,6 @@
   },
 
   "map_broker": {
-    "enabled": true,
     "type": "postgres",
     "postgres": {
       "dsn": "postgres://map_demo:map_demo@localhost:5432/map_demo?sslmode=disable",
@@ -57,103 +55,125 @@
     {
       "name": "cursors",
       "subscription_type": "map",
-      "map_sync_mode": "ephemeral",
-      "map_retention_mode": "expiring",
-      "map_key_ttl": "60s",
+      "map": {
+        "mode": "ephemeral",
+        "key_ttl": "60s",
+        "remove_client_on_unsubscribe": true,
+        "allow_publish_for_subscriber": true,
+        "client_key": "client_id"
+      },
       "publication_data_format": "json_object",
-      "map_remove_client_on_unsubscribe": true,
       "allow_subscribe_for_client": true,
-      "allow_publish_for_client": true,
-      "allow_map_publish_for_subscriber": true,
-      "map_client_key": "client_id"
+      "allow_publish_for_client": true
     },
     {
       "name": "games",
       "subscription_type": "map",
-      "map_sync_mode": "converging",
-      "map_retention_mode": "expiring",
-      "map_key_ttl": "60s",
-      "map_client_presence_namespace": "clients",
-      "map_user_presence_namespace": "users",
+      "map_clients_presence_channel_prefix": "clients:",
+      "map_users_presence_channel_prefix": "users:",
+      "map": {
+        "mode": "durable",
+        "key_ttl": "60s"
+      },
       "allow_subscribe_for_client": true
     },
     {
       "name": "game",
       "subscription_type": "map",
-      "map_sync_mode": "converging",
-      "map_retention_mode": "expiring",
-      "map_key_ttl": "60s",
-      "map_client_presence_namespace": "clients",
-      "map_user_presence_namespace": "users",
+      "map_clients_presence_channel_prefix": "clients:",
+      "map_users_presence_channel_prefix": "users:",
+      "map": {
+        "mode": "durable",
+        "key_ttl": "60s"
+      },
       "allow_subscribe_for_client": true
     },
     {
       "name": "clients",
       "subscription_type": "map_clients",
-      "map_sync_mode": "converging",
-      "map_retention_mode": "expiring",
-      "map_key_ttl": "60s",
+      "map": {
+        "mode": "durable",
+        "key_ttl": "60s"
+      },
       "allow_subscribe_for_client": true
     },
     {
       "name": "users",
       "subscription_type": "map_users",
-      "map_sync_mode": "converging",
-      "map_retention_mode": "expiring",
-      "map_key_ttl": "60s",
+      "map": {
+        "mode": "durable",
+        "key_ttl": "60s"
+      },
       "allow_subscribe_for_client": true
     },
     {
       "name": "tickers",
       "subscription_type": "map",
-      "map_sync_mode": "ephemeral",
-      "map_retention_mode": "expiring",
-      "map_key_ttl": "60s",
+      "map": {
+        "mode": "ephemeral",
+        "key_ttl": "60s"
+      },
       "allow_tags_filter": true,
       "allow_subscribe_for_client": true
     },
     {
       "name": "inventory",
       "subscription_type": "map",
-      "map_sync_mode": "converging",
-      "map_retention_mode": "permanent",
+      "map": {
+        "mode": "persistent"
+      },
       "allow_subscribe_for_client": true
     },
     {
       "name": "scoreboard",
       "subscription_type": "map",
-      "map_sync_mode": "converging",
-      "map_retention_mode": "permanent",
+      "map": {
+        "mode": "persistent"
+      },
       "allowed_delta_types": ["fossil"],
       "allow_subscribe_for_client": true
     },
     {
       "name": "leaderboard",
       "subscription_type": "map",
-      "map_sync_mode": "converging",
-      "map_retention_mode": "permanent",
+      "map": {
+        "mode": "persistent"
+      },
       "allow_subscribe_for_client": true
     },
     {
       "name": "poll",
       "subscription_type": "map",
-      "map_sync_mode": "converging",
-      "map_retention_mode": "permanent",
+      "map": {
+        "mode": "persistent"
+      },
       "allow_subscribe_for_client": true
     },
     {
       "name": "board",
       "subscription_type": "map",
-      "map_sync_mode": "converging",
-      "map_retention_mode": "permanent",
-      "map_ordered": true,
+      "map": {
+        "mode": "persistent",
+        "ordered": true
+      },
       "allow_subscribe_for_client": true
     },
     {
       "name": "visualizer",
       "subscription_type": "map",
-      "map_sync_mode": "converging",
-      "map_retention_mode": "permanent",
+      "map": {
+        "mode": "persistent",
+        "min_page_size": 1
+      },
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "orders",
+      "subscription_type": "map",
+      "map": {
+        "mode": "persistent",
+        "external_state": true
+      },
       "allow_subscribe_for_client": true
     }]
   }

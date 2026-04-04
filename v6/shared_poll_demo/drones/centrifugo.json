@@ -1,0 +1,46 @@
+{
+  "admin": {
+    "enabled": true,
+    "insecure": true
+  },
+  "shared_poll": {
+    "hmac_secret_key": "demo-drones-secret",
+    "notification": {
+      "enabled": true,
+      "type": "redis",
+      "redis": {
+        "address": "redis://localhost:6379"
+      },
+      "batch_max_size": 100,
+      "batch_max_delay": "100ms"
+    }
+  },
+  "client": {
+    "allowed_origins": ["*"],
+    "allow_anonymous_connect_without_token": true,
+    "insecure": true
+  },
+  "channel": {
+    "proxy": {
+      "shared_poll_refresh": {
+        "endpoint": "http://localhost:3001/centrifugo/refresh",
+        "timeout": "5s"
+      }
+    },
+    "namespaces": [
+      {
+        "name": "drones",
+        "subscription_type": "shared_poll",
+        "shared_poll": {
+          "refresh_interval": "1s",
+          "refresh_batch_size": 500,
+          "mode": "versionless",
+          "max_keys_per_connection": 500,
+          "max_consecutive_absences": 3,
+          "keep_latest_data": true
+        },
+        "allow_subscribe_for_client": true
+      }
+    ]
+  }
+}

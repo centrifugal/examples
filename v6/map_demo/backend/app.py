@@ -134,6 +134,54 @@ async def pg_map_remove(channel: str, key: str) -> dict:
     }
 
 
+async def pg_map_publish_stream(
+    conn, channel: str, key: str, data: dict,
+    meta_ttl: timedelta | None = None,
+) -> dict:
+    """Stream-only publish for ExternalState channels.
+    Uses the same DB connection (for transactional use)."""
+    row = await conn.fetchrow(
+        """
+        SELECT * FROM cf_map_publish_stream(
+            p_channel := $1,
+            p_key := $2,
+            p_data := $3::jsonb,
+            p_meta_ttl := $4
+        )
+        """,
+        channel, key, json.dumps(data), meta_ttl,
+    )
+    return {
+        "offset": row["channel_offset"],
+        "epoch": row["epoch"],
+        "suppressed": row["suppressed"],
+        "suppress_reason": row["suppress_reason"],
+    }
+
+
+async def pg_map_remove_stream(
+    conn, channel: str, key: str,
+    meta_ttl: timedelta | None = None,
+) -> dict:
+    """Stream-only remove for ExternalState channels."""
+    row = await conn.fetchrow(
+        """
+        SELECT * FROM cf_map_remove_stream(
+            p_channel := $1,
+            p_key := $2,
+            p_meta_ttl := $3
+        )
+        """,
+        channel, key, meta_ttl,
+    )
+    return {
+        "offset": row["channel_offset"],
+        "epoch": row["epoch"],
+        "suppressed": row["suppressed"],
+        "suppress_reason": row["suppress_reason"],
+    }
+
+
 # ===================================================================
 # RPC proxy handler
 # ===================================================================
@@ -561,6 +609,128 @@ async def viz_stats():
 
 
 # ===================================================================
+# Orders (ExternalState — app DB is source of truth)
+# ===================================================================
+@app.get("/api/orders/state")
+async def orders_get_state():
+    """Return all active orders + stream position for ExternalState getState callback."""
+    async with pool.acquire() as conn:
+        async with conn.transaction(isolation='repeatable_read'):
+            # Position FIRST (critical ordering for ExternalState).
+            meta = await conn.fetchrow(
+                "SELECT * FROM cf_map_stream_top_position($1)", "orders:kitchen"
+            )
+            offset = int(meta["top_offset"])
+            epoch = meta["epoch"]
+
+            # State SECOND — read from app's own table.
+            rows = await conn.fetch(
+                "SELECT id, table_number, items, status, notes, customer_name, color, created_at, updated_at "
+                "FROM orders WHERE status != 'cancelled' ORDER BY created_at ASC"
+            )
+
+    entries = []
+    for row in rows:
+        items = row["items"] if isinstance(row["items"], list) else json.loads(row["items"])
+        entries.append({
+            "key": row["id"],
+            "data": {
+                "tableNumber": row["table_number"],
+                "items": items,
+                "status": row["status"],
+                "notes": row["notes"],
+                "customerName": row["customer_name"],
+                "color": row["color"],
+                "createdAt": row["created_at"],
+                "updatedAt": row["updated_at"],
+            }
+        })
+
+    return JSONResponse({"entries": entries, "offset": offset, "epoch": epoch})
+
+
+@app.post("/api/orders/create")
+async def orders_create(request: Request):
+    data = await request.json()
+    order_id = "order_" + uuid.uuid4().hex[:8]
+    now = int(time.time() * 1000)
+    table_number = data.get("tableNumber", 1)
+    items = data.get("items", [])
+    notes = data.get("notes", "")
+    customer_name = data.get("customerName", "Guest")
+    color = data.get("color", "#888")
+
+    order_data = {
+        "tableNumber": table_number,
+        "items": items,
+        "status": "pending",
+        "notes": notes,
+        "customerName": customer_name,
+        "color": color,
+        "createdAt": now,
+        "updatedAt": now,
+    }
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                """INSERT INTO orders (id, table_number, items, status, notes, customer_name, color, created_at, updated_at)
+                   VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $8)""",
+                order_id, table_number, json.dumps(items), "pending", notes, customer_name, color, now,
+            )
+            await pg_map_publish_stream(conn, "orders:kitchen", order_id, order_data)
+
+    return JSONResponse({"orderId": order_id})
+
+
+@app.post("/api/orders/update-status")
+async def orders_update_status(request: Request):
+    data = await request.json()
+    order_id = data.get("orderId", "")
+    new_status = data.get("status", "")
+
+    valid_statuses = ["pending", "preparing", "ready", "served", "cancelled"]
+    if new_status not in valid_statuses:
+        return JSONResponse({"error": "invalid status"}, status_code=400)
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT id, table_number, items, status, notes, customer_name, color, created_at, updated_at "
+                "FROM orders WHERE id = $1 FOR UPDATE",
+                order_id,
+            )
+            if not row:
+                return JSONResponse({"error": "order not found"}, status_code=404)
+
+            now = int(time.time() * 1000)
+            await conn.execute(
+                "UPDATE orders SET status = $1, updated_at = $2 WHERE id = $3",
+                new_status, now, order_id,
+            )
+
+            items = row["items"] if isinstance(row["items"], list) else json.loads(row["items"])
+            order_data = {
+                "tableNumber": row["table_number"],
+                "items": items,
+                "status": new_status,
+                "notes": row["notes"],
+                "customerName": row["customer_name"],
+                "color": row["color"],
+                "createdAt": row["created_at"],
+                "updatedAt": now,
+            }
+
+            if new_status == "cancelled":
+                # Cancelled — remove from map stream so subscribers drop the entry.
+                await pg_map_remove_stream(conn, "orders:kitchen", order_id)
+            else:
+                await pg_map_publish_stream(conn, "orders:kitchen", order_id, order_data)
+
+    return JSONResponse({"success": True})
+
+
+# ===================================================================
 # Background task: Ticker
 # ===================================================================
 TICKERS = [
@@ -954,6 +1124,97 @@ async def poll_manager_task():
 
 
 # ===================================================================
+# Background task: Orders demo
+# ===================================================================
+SAMPLE_MENU = [
+    {"name": "Margherita Pizza", "emoji": "\U0001f355"},
+    {"name": "Caesar Salad", "emoji": "\U0001f957"},
+    {"name": "Grilled Salmon", "emoji": "\U0001f41f"},
+    {"name": "Pasta Carbonara", "emoji": "\U0001f35d"},
+    {"name": "Beef Burger", "emoji": "\U0001f354"},
+    {"name": "Chicken Wings", "emoji": "\U0001f357"},
+    {"name": "Mushroom Risotto", "emoji": "\U0001f344"},
+    {"name": "Fish & Chips", "emoji": "\U0001f420"},
+    {"name": "Tom Yum Soup", "emoji": "\U0001f35c"},
+    {"name": "Tiramisu", "emoji": "\U0001f370"},
+]
+
+CUSTOMER_NAMES = ["Alice", "Bob", "Carlos", "Diana", "Emma", "Felix", "Grace", "Hugo", "Iris", "Jack"]
+
+
+async def orders_demo_task():
+    """Background task that simulates restaurant order flow."""
+    # Clean up old orders on startup.
+    await pool.execute("DELETE FROM orders")
+
+    # Wait a bit for schema to be ready.
+    await asyncio.sleep(5)
+
+    order_colors = ['#e91e63', '#9c27b0', '#3f51b5', '#00bcd4', '#4caf50', '#ff9800', '#f44336', '#009688']
+
+    while True:
+        try:
+            # Create a new order every 8-15 seconds.
+            await asyncio.sleep(random.uniform(8, 15))
+
+            table_number = random.randint(1, 12)
+            num_items = random.randint(1, 3)
+            items = [
+                {"name": item["name"], "emoji": item["emoji"], "qty": random.randint(1, 2)}
+                for item in random.sample(SAMPLE_MENU, num_items)
+            ]
+            customer = random.choice(CUSTOMER_NAMES)
+            color = random.choice(order_colors)
+
+            # Create via API to reuse the transactional flow.
+            resp = await http_client.post(
+                f"http://localhost:5000/api/orders/create",
+                json={
+                    "tableNumber": table_number,
+                    "items": items,
+                    "customerName": customer,
+                    "color": color,
+                },
+                timeout=5.0,
+            )
+            if resp.status_code != 200:
+                continue
+
+            order_id = resp.json().get("orderId")
+            if not order_id:
+                continue
+
+            # Simulate kitchen workflow: pending -> preparing -> ready -> served
+            await asyncio.sleep(random.uniform(5, 10))
+
+            await http_client.post(
+                f"http://localhost:5000/api/orders/update-status",
+                json={"orderId": order_id, "status": "preparing"},
+                timeout=5.0,
+            )
+
+            await asyncio.sleep(random.uniform(8, 15))
+
+            await http_client.post(
+                f"http://localhost:5000/api/orders/update-status",
+                json={"orderId": order_id, "status": "ready"},
+                timeout=5.0,
+            )
+
+            await asyncio.sleep(random.uniform(5, 10))
+
+            await http_client.post(
+                f"http://localhost:5000/api/orders/update-status",
+                json={"orderId": order_id, "status": "served"},
+                timeout=5.0,
+            )
+
+        except Exception:
+            logger.exception("orders_demo_task error")
+            await asyncio.sleep(5)
+
+
+# ===================================================================
 # Startup / Shutdown
 # ===================================================================
 @app.on_event("startup")
@@ -988,6 +1249,21 @@ async def startup():
     else:
         logger.warning("Centrifugo not reachable — starting anyway")
 
+    # Create orders table if it doesn't exist.
+    await pool.execute("""
+        CREATE TABLE IF NOT EXISTS orders (
+            id TEXT PRIMARY KEY,
+            table_number INT NOT NULL,
+            items JSONB NOT NULL DEFAULT '[]',
+            status TEXT NOT NULL DEFAULT 'pending',
+            notes TEXT NOT NULL DEFAULT '',
+            customer_name TEXT NOT NULL DEFAULT '',
+            color TEXT NOT NULL DEFAULT '#888',
+            created_at BIGINT NOT NULL DEFAULT 0,
+            updated_at BIGINT NOT NULL DEFAULT 0
+        )
+    """)
+
     # Clean up stale poll data from previous runs.
     for ch in ("poll:meta", "poll:results", "poll:votes"):
         try:
@@ -1005,6 +1281,7 @@ async def startup():
     asyncio.create_task(ticker_task())
     asyncio.create_task(scoreboard_task())
     asyncio.create_task(poll_manager_task())
+    asyncio.create_task(orders_demo_task())
     logger.info("Background tasks started")
 
 

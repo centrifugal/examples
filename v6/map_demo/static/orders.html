@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Orders (External State) - Map Subscriptions Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #2d1b36 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header h1 {
+            font-size: 20px;
+        }
+        .es-badge {
+            display: inline-block;
+            background: #00897b;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #888;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #f44;
+        }
+        .status-dot.connected {
+            background: #4f4;
+        }
+        .new-order-btn {
+            background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .new-order-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Board */
+        .board {
+            flex: 1;
+            display: flex;
+            gap: 16px;
+            padding: 20px 24px;
+            overflow-x: auto;
+            min-height: 0;
+        }
+        .column {
+            flex: 1;
+            min-width: 260px;
+            max-width: 340px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 2px;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 90px);
+        }
+        .column-header {
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            flex-shrink: 0;
+        }
+        .column-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .column-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .column-count {
+            background: rgba(255,255,255,0.08);
+            padding: 1px 7px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+        }
+        .column-cards {
+            flex: 1;
+            padding: 4px 0;
+            overflow-y: auto;
+            min-height: 60px;
+        }
+        .column.served-col {
+            opacity: 0.6;
+        }
+
+        /* Order Cards */
+        .order-card {
+            background: rgba(255,255,255,0.04);
+            border: none;
+            border-radius: 2px;
+            padding: 14px 16px;
+            margin-bottom: 2px;
+            position: relative;
+            transition: background 0.15s;
+            border-left: 3px solid transparent;
+        }
+        .order-card:hover {
+            background: rgba(255,255,255,0.08);
+        }
+        .order-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6px;
+        }
+        .table-number {
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: -0.01em;
+        }
+        .table-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: #777;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .cancel-btn {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.2);
+            cursor: pointer;
+            font-size: 14px;
+            width: 22px;
+            height: 22px;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+            opacity: 0;
+        }
+        .order-card:hover .cancel-btn {
+            opacity: 1;
+        }
+        .cancel-btn:hover {
+            background: rgba(244,67,54,0.2);
+            color: #ef5350;
+        }
+        .customer-name {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .customer-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .order-items {
+            list-style: none;
+            margin-bottom: 8px;
+        }
+        .order-items li {
+            font-size: 13px;
+            padding: 1px 0;
+            color: #ccc;
+        }
+        .order-items .qty {
+            color: #666;
+            font-size: 11px;
+        }
+        .order-notes {
+            font-size: 11px;
+            color: #888;
+            font-style: italic;
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.03);
+            border-left: 2px solid rgba(255,255,255,0.08);
+            border-radius: 0;
+        }
+        .order-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .order-time {
+            font-size: 11px;
+            color: #555;
+        }
+        .action-btn {
+            border: none;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 2px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .action-btn:hover {
+            filter: brightness(1.15);
+        }
+        .action-btn.start-preparing {
+            background: #1e88e5;
+        }
+        .action-btn.mark-ready {
+            background: #43a047;
+        }
+        .action-btn.mark-served {
+            background: #546e7a;
+        }
+
+        /* Status accent */
+        .order-card.status-pending {
+            border-left-color: #ffa726;
+        }
+        .order-card.status-preparing {
+            border-left-color: #1e88e5;
+        }
+        .order-card.status-ready {
+            border-left-color: #43a047;
+        }
+        .order-card.status-served {
+            border-left-color: #546e7a;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            z-index: 200;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .toast.success { background: rgba(76,175,80,0.9); color: white; }
+        .toast.error { background: rgba(244,67,54,0.9); color: white; }
+
+        .back-link {
+            position: fixed;
+            bottom: 16px;
+            left: 16px;
+            color: #666;
+            text-decoration: none;
+            font-size: 13px;
+            z-index: 50;
+        }
+        .back-link:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1>Kitchen Orders <span class="es-badge">External State</span></h1>
+        </div>
+        <div class="header-right">
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+            <button class="new-order-btn" onclick="quickOrder()">+ Quick Order</button>
+        </div>
+    </div>
+
+    <div class="board" id="board">
+        <div class="column" data-status="pending">
+            <div class="column-header">
+                <div class="column-title">
+                    <span class="column-dot" style="background: #ffa726;"></span>
+                    Pending
+                    <span class="column-count" id="count-pending">0</span>
+                </div>
+            </div>
+            <div class="column-cards" id="cards-pending"></div>
+        </div>
+        <div class="column" data-status="preparing">
+            <div class="column-header">
+                <div class="column-title">
+                    <span class="column-dot" style="background: #42a5f5;"></span>
+                    Preparing
+                    <span class="column-count" id="count-preparing">0</span>
+                </div>
+            </div>
+            <div class="column-cards" id="cards-preparing"></div>
+        </div>
+        <div class="column" data-status="ready">
+            <div class="column-header">
+                <div class="column-title">
+                    <span class="column-dot" style="background: #66bb6a;"></span>
+                    Ready
+                    <span class="column-count" id="count-ready">0</span>
+                </div>
+            </div>
+            <div class="column-cards" id="cards-ready"></div>
+        </div>
+        <div class="column served-col" data-status="served">
+            <div class="column-header">
+                <div class="column-title">
+                    <span class="column-dot" style="background: #78909c;"></span>
+                    Served
+                    <span class="column-count" id="count-served">0</span>
+                </div>
+            </div>
+            <div class="column-cards" id="cards-served"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <a href="/" class="back-link">Back to demos</a>
+
+    <script src="http://localhost:2000/centrifuge.js"></script>
+    <script>
+        // --- Menu ---
+        const MENU = [
+            { name: 'Margherita Pizza', emoji: '\u{1F355}' },
+            { name: 'Caesar Salad', emoji: '\u{1F957}' },
+            { name: 'Grilled Salmon', emoji: '\u{1F41F}' },
+            { name: 'Pasta Carbonara', emoji: '\u{1F35D}' },
+            { name: 'Beef Burger', emoji: '\u{1F354}' },
+            { name: 'Chicken Wings', emoji: '\u{1F357}' },
+            { name: 'Mushroom Risotto', emoji: '\u{1F344}' },
+            { name: 'Fish & Chips', emoji: '\u{1F420}' },
+            { name: 'Tom Yum Soup', emoji: '\u{1F35C}' },
+            { name: 'Tiramisu', emoji: '\u{1F370}' },
+        ];
+
+
+        // --- User identity ---
+        const userColors = ['#e91e63','#9c27b0','#3f51b5','#00bcd4','#4caf50','#ff9800','#f44336','#009688'];
+        const userColor = localStorage.getItem('orders_userColor') || (() => {
+            const c = userColors[Math.floor(Math.random() * userColors.length)];
+            localStorage.setItem('orders_userColor', c);
+            return c;
+        })();
+
+        // --- Order state ---
+        const orders = new Map(); // orderId -> order data
+
+        // --- Centrifuge ---
+        const centrifuge = new Centrifuge('ws://' + window.location.host + '/connection/websocket', {
+            name: 'kitchen_user'
+        });
+
+        centrifuge.on('connected', () => {
+            document.getElementById('statusDot').classList.add('connected');
+            document.getElementById('statusText').textContent = 'Connected';
+        });
+        centrifuge.on('connecting', () => {
+            document.getElementById('statusDot').classList.remove('connected');
+            document.getElementById('statusText').textContent = 'Connecting...';
+        });
+        centrifuge.on('disconnected', () => {
+            document.getElementById('statusDot').classList.remove('connected');
+            document.getElementById('statusText').textContent = 'Disconnected';
+        });
+
+        const sub = centrifuge.newMapSubscription('orders:kitchen', {
+            getState: async () => {
+                const resp = await fetch('/api/orders/state');
+                const data = await resp.json();
+                return { entries: data.entries, offset: data.offset, epoch: data.epoch };
+            }
+        });
+
+        sub.on('sync', (ctx) => {
+            orders.clear();
+            for (const entry of ctx.entries) {
+                orders.set(entry.key, { id: entry.key, ...entry.data });
+            }
+            renderBoard();
+        });
+
+        sub.on('update', (ctx) => {
+            if (ctx.removed) {
+                orders.delete(ctx.key);
+            } else {
+                orders.set(ctx.key, { id: ctx.key, ...ctx.data });
+            }
+            renderBoard();
+        });
+
+        sub.subscribe();
+        centrifuge.connect();
+
+        // --- Relative time ---
+        function relativeTime(ts) {
+            if (!ts) return '';
+            const diff = Math.floor((Date.now() - ts) / 1000);
+            if (diff < 10) return 'just now';
+            if (diff < 60) return diff + 's ago';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            return Math.floor(diff / 86400) + 'd ago';
+        }
+
+        // Update relative times every 30s.
+        setInterval(() => {
+            document.querySelectorAll('.order-time').forEach(el => {
+                const ts = parseInt(el.dataset.ts, 10);
+                if (ts) el.textContent = relativeTime(ts);
+            });
+        }, 30000);
+
+        // --- Rendering ---
+        const statusOrder = ['pending', 'preparing', 'ready', 'served'];
+
+        function renderBoard() {
+            const groups = { pending: [], preparing: [], ready: [], served: [] };
+
+            for (const order of orders.values()) {
+                const status = groups[order.status] ? order.status : 'pending';
+                groups[status].push(order);
+            }
+
+            // Sort each column by creation time (oldest first).
+            for (const status of statusOrder) {
+                if (status === 'served') {
+                    groups[status].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+                } else {
+                    groups[status].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+                }
+            }
+
+            for (const status of statusOrder) {
+                const container = document.getElementById('cards-' + status);
+                const countEl = document.getElementById('count-' + status);
+                const orderList = groups[status];
+                countEl.textContent = orderList.length;
+
+                const currentIds = new Set(orderList.map(o => o.id));
+                const existingCards = container.querySelectorAll('.order-card');
+                const existingMap = new Map();
+
+                for (const card of existingCards) {
+                    const cardId = card.dataset.orderId;
+                    if (!currentIds.has(cardId)) {
+                        card.remove();
+                    } else {
+                        existingMap.set(cardId, card);
+                    }
+                }
+
+                for (let i = 0; i < orderList.length; i++) {
+                    const order = orderList[i];
+                    let card = existingMap.get(order.id);
+
+                    if (card) {
+                        updateCardContent(card, order);
+                    } else {
+                        card = createCardElement(order);
+                        container.appendChild(card);
+                    }
+
+                    if (container.children[i] !== card) {
+                        container.insertBefore(card, container.children[i]);
+                    }
+                }
+            }
+        }
+
+        function createCardElement(order) {
+            const card = document.createElement('div');
+            card.className = 'order-card';
+            card.dataset.orderId = order.id;
+            updateCardContent(card, order);
+            return card;
+        }
+
+        function updateCardContent(card, order) {
+            const statusClass = 'status-' + (order.status || 'pending');
+            card.className = 'order-card ' + statusClass;
+
+            const items = order.items || [];
+            let itemsHtml = '';
+            for (const item of items) {
+                const qtyStr = item.qty > 1 ? ' <span class="qty">x' + item.qty + '</span>' : '';
+                itemsHtml += '<li>' + (item.emoji || '') + ' ' + escapeHtml(item.name || '') + qtyStr + '</li>';
+            }
+
+            const notesHtml = order.notes
+                ? '<div class="order-notes">' + escapeHtml(order.notes) + '</div>'
+                : '';
+
+            let actionHtml = '';
+            if (order.status === 'pending') {
+                actionHtml = '<button class="action-btn start-preparing" onclick="updateStatus(\'' + order.id + '\', \'preparing\')">Start Preparing</button>';
+            } else if (order.status === 'preparing') {
+                actionHtml = '<button class="action-btn mark-ready" onclick="updateStatus(\'' + order.id + '\', \'ready\')">Mark Ready</button>';
+            } else if (order.status === 'ready') {
+                actionHtml = '<button class="action-btn mark-served" onclick="updateStatus(\'' + order.id + '\', \'served\')">Mark Served</button>';
+            }
+
+            card.innerHTML = `
+                <div class="order-card-top">
+                    <div class="table-number">
+                        <span class="table-label">Table</span> #${escapeHtml(String(order.tableNumber || '?'))}
+                    </div>
+                    <button class="cancel-btn" onclick="cancelOrder('${order.id}')" title="Cancel order">&times;</button>
+                </div>
+                <div class="customer-name">
+                    <span class="customer-dot" style="background: ${order.color || '#888'}"></span>
+                    ${escapeHtml(order.customerName || 'Guest')}
+                </div>
+                <ul class="order-items">${itemsHtml}</ul>
+                ${notesHtml}
+                <div class="order-footer">
+                    <span class="order-time" data-ts="${order.created || ''}">${relativeTime(order.created)}</span>
+                    ${actionHtml}
+                </div>
+            `;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // --- API calls ---
+        const QUICK_NAMES = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Hank'];
+
+        async function quickOrder() {
+            const tableNumber = Math.floor(Math.random() * 12) + 1;
+            const customerName = QUICK_NAMES[Math.floor(Math.random() * QUICK_NAMES.length)];
+            const numItems = Math.floor(Math.random() * 3) + 1;
+            const shuffled = [...MENU].sort(() => Math.random() - 0.5);
+            const items = shuffled.slice(0, numItems).map(m => ({
+                name: m.name, emoji: m.emoji, qty: Math.floor(Math.random() * 3) + 1
+            }));
+
+            try {
+                const resp = await fetch('/api/orders/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tableNumber, items, customerName, notes: '', color: userColor,
+                    })
+                });
+                if (!resp.ok) throw new Error(await resp.text());
+                showToast('Order created', 'success');
+            } catch (err) {
+                showToast('Failed to create order', 'error');
+                console.error('Quick order error:', err);
+            }
+        }
+
+        async function updateStatus(orderId, newStatus) {
+            // Optimistically update.
+            const order = orders.get(orderId);
+            if (order) {
+                order.status = newStatus;
+            }
+            renderBoard();
+
+            try {
+                const resp = await fetch('/api/orders/update-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId: orderId, status: newStatus })
+                });
+                if (!resp.ok) throw new Error(await resp.text());
+            } catch (err) {
+                showToast('Failed to update status', 'error');
+                console.error('Update status error:', err);
+            }
+        }
+
+        async function cancelOrder(orderId) {
+            // Optimistically remove.
+            orders.delete(orderId);
+            renderBoard();
+
+            try {
+                const resp = await fetch('/api/orders/update-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId: orderId, status: 'cancelled' })
+                });
+                if (!resp.ok) throw new Error(await resp.text());
+                showToast('Order cancelled', 'success');
+            } catch (err) {
+                showToast('Failed to cancel order', 'error');
+                console.error('Cancel error:', err);
+            }
+        }
+
+        // --- Modal ---
+        // --- Toast ---
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            void toast.offsetWidth;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+    </script>
+</body>
+</html>

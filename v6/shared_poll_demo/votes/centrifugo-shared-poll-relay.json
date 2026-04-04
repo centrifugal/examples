@@ -1,0 +1,68 @@
+{
+  "admin": {
+    "enabled": true,
+    "insecure": true
+  },
+  "client": {
+    "allowed_origins": ["*"],
+    "allow_anonymous_connect_without_token": true,
+    "insecure": true
+  },
+  "http_api": {
+    "key": "demo-api-key"
+  },
+  "channel": {
+    "proxy": {
+      "shared_poll_refresh": {
+        "endpoint": "http://localhost:3001/centrifugo/refresh",
+        "timeout": "5s"
+      }
+    },
+    "namespaces": [
+      {
+        "name": "post_votes",
+        "subscription_type": "shared_poll",
+        "shared_poll": {
+          "refresh_interval": "10000ms",
+          "refresh_batch_size": 1000,
+          "mode": "versioned",
+          "max_keys_per_connection": 5000,
+          "max_consecutive_absences": 2,
+          "keep_latest_data": true
+        },
+        "allowed_delta_types": ["fossil"],
+        "allow_subscribe_for_client": true
+      }
+    ]
+  },
+  "shared_poll": {
+    "hmac_secret_key": "demo-poll-secret",
+    "notification": {
+      "enabled": true,
+      "type": "redis",
+      "redis": {
+        "address": "redis://localhost:6379"
+      },
+      "batch_max_size": 50,
+      "batch_max_delay": "200ms"
+    }
+  },
+  "shared_poll_relay": {
+    "enabled": true,
+    "endpoint": "http://localhost:9090",
+    "http_server": {
+      "enabled": true,
+      "port": 9090
+    },
+    "grpc_server": {
+      "enabled": false
+    },
+    "notification": {
+      "enabled": true,
+      "type": "redis",
+      "redis": {
+        "address": "redis://localhost:6379"
+      }
+    }
+  }
+}
