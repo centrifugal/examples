@@ -277,7 +277,7 @@
         let currentSector = '';
 
         // Create a single map subscription — use setTagsFilter + resubscribe to change filter.
-        const sub = centrifuge.newMapSubscription('tickers:all', { limit: 50 });
+        const sub = centrifuge.newMapSubscription('tickers:all');
 
         sub.on('sync', (ctx) => {
             console.log('Synced tickers channel, sector:', currentSector || 'all');
@@ -393,11 +393,11 @@
 
         // Sector lookup from symbol (used when tags aren't in the data payload).
         const symbolSectors = {
-            AAPL: 'tech', GOOG: 'tech', MSFT: 'tech', META: 'tech', NVDA: 'tech',
-            AMZN: 'ecommerce',
+            AAPL: 'tech', GOOG: 'tech', NVDA: 'tech', AMD: 'tech', UBER: 'tech',
+            AMZN: 'ecommerce', SHOP: 'ecommerce',
+            MSFT: 'enterprise',
             TSLA: 'auto',
-            NFLX: 'media',
-            ORCL: 'enterprise', CRM: 'enterprise',
+            META: 'media', NFLX: 'media',
         };
 
         function getSectorFromSymbol(symbol) {

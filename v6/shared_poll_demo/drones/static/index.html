@@ -292,10 +292,16 @@
                 clearTimeout(removalTimers[d.id]);
                 delete removalTimers[d.id];
             }
+            const inside = isInCircle(d.lat, d.lng);
             const entry = droneMarkers[d.id];
             if (entry) {
                 entry.marker.setLatLng([d.lat, d.lng]);
                 entry.cellKey = cellKey;
+                // Hide drones outside the circle entirely — clip-path alone
+                // leaves them partially visible at the edge, looking "stuck".
+                if (entry.marker._icon) {
+                    entry.marker._icon.style.display = inside ? '' : 'none';
+                }
             } else {
                 const name = d.name || d.id;
                 const m = L.marker([d.lat, d.lng], {
@@ -304,6 +310,10 @@
                     pane: 'dronePane',
                 });
                 m.addTo(map);
+                // Hide immediately if outside circle.
+                if (!inside && m._icon) {
+                    m._icon.style.display = 'none';
+                }
                 // Enable transition after browser paints initial position.
                 requestAnimationFrame(() => requestAnimationFrame(() => {
                     m._icon?.classList.add('smooth');
@@ -387,7 +397,7 @@
                 renderCell(c);
             }
 
-            sub.track(toTrack.map(k => ({ key: k })), data.signature);
+            sub.track(toTrack.map(k => ({ key: k, version: data.versions[k] || 0 })), data.signature);
         }
 
         refreshStats();

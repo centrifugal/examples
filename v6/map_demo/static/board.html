@@ -502,7 +502,7 @@
             document.getElementById('statusText').textContent = 'Disconnected';
         });
 
-        const sub = centrifuge.newMapSubscription('board:main', { limit: 500 });
+        const sub = centrifuge.newMapSubscription('board:main');
 
         sub.on('sync', (ctx) => {
             tasks.clear();

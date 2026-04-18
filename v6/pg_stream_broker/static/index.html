@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kitchen Orders (External State) - Map Subscriptions Demo</title>
+    <title>Kitchen Orders — PG Stream Broker + getState Demo</title>
     <style>
         * {
             box-sizing: border-box;
@@ -422,27 +422,32 @@
             document.getElementById('statusText').textContent = 'Disconnected';
         });
 
-        const sub = centrifuge.newMapSubscription('orders:kitchen', {
+        // Stream subscription + position-only getState.
+        // App DB is the source of truth; broker only delivers events.
+        const sub = centrifuge.newSubscription('orders:kitchen', {
             getState: async () => {
                 const resp = await fetch('/api/orders/state');
                 const data = await resp.json();
-                return { entries: data.entries, offset: data.offset, epoch: data.epoch };
+                // Render initial state from app DB.
+                orders.clear();
+                for (const entry of data.entries) {
+                    orders.set(entry.key, { id: entry.key, ...entry.data });
+                }
+                renderBoard();
+                // Return just the stream position.
+                return { offset: data.offset, epoch: data.epoch };
             }
         });
 
-        sub.on('sync', (ctx) => {
-            orders.clear();
-            for (const entry of ctx.entries) {
-                orders.set(entry.key, { id: entry.key, ...entry.data });
-            }
-            renderBoard();
-        });
-
-        sub.on('update', (ctx) => {
-            if (ctx.removed) {
-                orders.delete(ctx.key);
+        // Each publication contains { key, data, removed? }.
+        // Stream catch-up + live updates both arrive via 'publication'.
+        sub.on('publication', (ctx) => {
+            const pub = ctx.data;
+            if (!pub || !pub.key) return;
+            if (pub.removed) {
+                orders.delete(pub.key);
             } else {
-                orders.set(ctx.key, { id: ctx.key, ...ctx.data });
+                orders.set(pub.key, { id: pub.key, ...pub.data });
             }
             renderBoard();
         });

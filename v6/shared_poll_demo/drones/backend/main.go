@@ -1,11 +1,13 @@
 package main
 
 import (
-	"context"
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"math/rand/v2"
@@ -15,12 +17,11 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 )
 
 const (
 	hmacSecret = "demo-drones-secret"
+	apiKey     = "demo-drones-api-key"
 	cellSize   = 0.005 // ~550 m
 	numDrones  = 500
 	channel    = "drones:sf"
@@ -71,10 +72,21 @@ type drone struct {
 }
 
 var (
-	mu     sync.RWMutex
-	drones []*drone
-	cells  map[string][]DronePos // cellKey → sorted by ID
-	rdb    *redis.Client
+	mu           sync.RWMutex
+	drones       []*drone
+	cells        map[string][]DronePos // cellKey → sorted by ID
+	cellVersions map[string]uint64
+	version      uint64
+
+	centrifugoURL string
+	httpClient    = &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 100,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
 )
 
 func cellKey(lat, lng float64) string {
@@ -83,42 +95,40 @@ func cellKey(lat, lng float64) string {
 	return fmt.Sprintf("%.3f:%.3f", cLat, cLng)
 }
 
-// ---------- Redis ----------
+// ---------- SharedPollPublish ----------
 
-func initRedis() {
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "redis://localhost:6379"
-	}
-	opts, err := redis.ParseURL(redisURL)
-	if err != nil {
-		log.Fatalf("parse REDIS_URL: %v", err)
-	}
-	rdb = redis.NewClient(opts)
-	ctx := context.Background()
-	for i := 0; i < 30; i++ {
-		if rdb.Ping(ctx).Err() == nil {
-			break
-		}
-		time.Sleep(time.Second)
-	}
-	if err := rdb.Ping(ctx).Err(); err != nil {
-		log.Fatalf("redis: %v", err)
-	}
-	log.Println("connected to Redis")
+type pubItem struct {
+	key     string
+	data    []byte
+	version uint64
 }
 
-func notifySharedPoll(ctx context.Context, keys []string) {
-	type notification struct {
-		Channel string `json:"channel"`
-		Key     string `json:"key"`
+// Buffered channel of capacity 1 — if the publisher is busy, the old
+// batch is replaced by the newer one (fresher data wins).
+var pubCh = make(chan []pubItem, 1)
+
+func publishLoop() {
+	for pubs := range pubCh {
+		for _, p := range pubs {
+			b64 := base64.StdEncoding.EncodeToString(p.data)
+			body, _ := json.Marshal(map[string]any{
+				"channel": channel,
+				"key":     p.key,
+				"b64data": b64,
+				"version": p.version,
+			})
+			req, _ := http.NewRequest("POST", centrifugoURL+"/api/shared_poll_publish", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "apikey "+apiKey)
+			resp, err := httpClient.Do(req)
+			if err != nil {
+				log.Printf("shared_poll_publish %s: %v", p.key, err)
+				continue
+			}
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}
 	}
-	items := make([]notification, len(keys))
-	for i, key := range keys {
-		items[i] = notification{Channel: channel, Key: key}
-	}
-	data, _ := json.Marshal(map[string]any{"items": items})
-	rdb.Publish(ctx, "shared_poll_notify", data)
 }
 
 // ---------- Simulation ----------
@@ -135,7 +145,12 @@ func initDrones() {
 		d.speed = droneMinSpeed + rand.Float64()*(droneMaxSpeed-droneMinSpeed)
 		drones[i] = d
 	}
+	cellVersions = make(map[string]uint64)
+	version = 1
 	cells = buildCells()
+	for k := range cells {
+		cellVersions[k] = version
+	}
 }
 
 func buildCells() map[string][]DronePos {
@@ -151,36 +166,78 @@ func buildCells() map[string][]DronePos {
 	return m
 }
 
+const numGroups = 50 // stagger drones into 50 groups, tick every 20ms
+
+func moveDrone(d *drone) {
+	// Gentle turn — smooth curved flight paths.
+	d.bearing += (rand.Float64() - 0.5) * 0.4
+	// Slight speed variation.
+	d.speed += (rand.Float64() - 0.5) * 0.00004
+	d.speed = max(droneMinSpeed, min(droneMaxSpeed, d.speed))
+	// Move along bearing.
+	d.Lat += math.Cos(d.bearing) * d.speed
+	d.Lng += math.Sin(d.bearing) * d.speed
+	// Bounce off city bounds.
+	if d.Lat <= minLat || d.Lat >= maxLat {
+		d.Lat = max(minLat, min(maxLat, d.Lat))
+		d.bearing = math.Pi - d.bearing
+	}
+	if d.Lng <= minLng || d.Lng >= maxLng {
+		d.Lng = max(minLng, min(maxLng, d.Lng))
+		d.bearing = -d.bearing
+	}
+}
+
 func simulationLoop() {
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(time.Second / numGroups)
+	groupIdx := 0
 	for range ticker.C {
 		mu.Lock()
-		for _, d := range drones {
-			// Gentle turn — smooth curved flight paths.
-			d.bearing += (rand.Float64() - 0.5) * 0.4
-			// Slight speed variation.
-			d.speed += (rand.Float64() - 0.5) * 0.00004
-			d.speed = max(droneMinSpeed, min(droneMaxSpeed, d.speed))
-			// Move along bearing.
-			d.Lat += math.Cos(d.bearing) * d.speed
-			d.Lng += math.Sin(d.bearing) * d.speed
-			// Bounce off city bounds.
-			if d.Lat <= minLat || d.Lat >= maxLat {
-				d.Lat = max(minLat, min(maxLat, d.Lat))
-				d.bearing = math.Pi - d.bearing
-			}
-			if d.Lng <= minLng || d.Lng >= maxLng {
-				d.Lng = max(minLng, min(maxLng, d.Lng))
-				d.bearing = -d.bearing
-			}
+		version++
+
+		// Move only drones in this group.
+		groupSize := numDrones / numGroups
+		start := groupIdx * groupSize
+		end := start + groupSize
+		if groupIdx == numGroups-1 {
+			end = numDrones
 		}
+		for i := start; i < end; i++ {
+			moveDrone(drones[i])
+		}
+		groupIdx = (groupIdx + 1) % numGroups
+
 		newCells := buildCells()
 		changed := changedKeys(cells, newCells)
 		cells = newCells
+		for _, k := range changed {
+			cellVersions[k] = version
+		}
+		// Clean up versions for cells with no drones.
+		for k := range cellVersions {
+			if _, ok := cells[k]; !ok {
+				delete(cellVersions, k)
+			}
+		}
+
+		// Collect publish payloads while holding the lock.
+		pubs := make([]pubItem, 0, len(changed))
+		for _, k := range changed {
+			ds := cells[k]
+			if ds == nil {
+				ds = []DronePos{}
+			}
+			data, _ := json.Marshal(map[string]any{"drones": ds})
+			pubs = append(pubs, pubItem{key: k, data: data, version: cellVersions[k]})
+		}
 		mu.Unlock()
 
-		if len(changed) > 0 {
-			notifySharedPoll(context.Background(), changed)
+		// Send to publisher; drop if it's still busy (next tick has fresher data).
+		if len(pubs) > 0 {
+			select {
+			case pubCh <- pubs:
+			default:
+			}
 		}
 	}
 }
@@ -241,12 +298,14 @@ func handleGetCells(w http.ResponseWriter, r *http.Request) {
 
 	mu.RLock()
 	result := make(map[string][]DronePos, len(keys))
+	versions := make(map[string]uint64, len(keys))
 	for _, k := range keys {
 		if ds, ok := cells[k]; ok {
 			result[k] = ds
 		} else {
 			result[k] = []DronePos{}
 		}
+		versions[k] = cellVersions[k]
 	}
 	mu.RUnlock()
 
@@ -254,6 +313,7 @@ func handleGetCells(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
 		"cells":     result,
+		"versions":  versions,
 		"signature": sig,
 		"keys":      keys,
 	})
@@ -271,7 +331,7 @@ func handleTrackRefresh(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{"keys": req.Keys, "signature": sig})
 }
 
-// POST /centrifugo/refresh — shared poll refresh proxy.
+// POST /centrifugo/refresh — shared poll refresh proxy (safety net).
 func handleCentrifugoRefresh(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Channel string `json:"channel"`
@@ -289,8 +349,9 @@ func handleCentrifugoRefresh(w http.ResponseWriter, r *http.Request) {
 
 	mu.RLock()
 	type respItem struct {
-		Key  string `json:"key"`
-		Data any    `json:"data"`
+		Key     string `json:"key"`
+		Data    any    `json:"data"`
+		Version uint64 `json:"version"`
 	}
 	items := make([]respItem, 0, len(req.Items))
 	for _, it := range req.Items {
@@ -298,7 +359,11 @@ func handleCentrifugoRefresh(w http.ResponseWriter, r *http.Request) {
 		if ds == nil {
 			ds = []DronePos{}
 		}
-		items = append(items, respItem{Key: it.Key, Data: map[string]any{"drones": ds}})
+		items = append(items, respItem{
+			Key:     it.Key,
+			Data:    map[string]any{"drones": ds},
+			Version: cellVersions[it.Key],
+		})
 	}
 	mu.RUnlock()
 
@@ -307,8 +372,13 @@ func handleCentrifugoRefresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	initRedis()
+	centrifugoURL = os.Getenv("CENTRIFUGO_URL")
+	if centrifugoURL == "" {
+		centrifugoURL = "http://localhost:8000"
+	}
+
 	initDrones()
+	go publishLoop()
 	go simulationLoop()
 
 	fs := http.FileServer(http.Dir("../static"))

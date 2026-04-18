@@ -222,9 +222,7 @@
         });
 
         // Subscribe to cursors channel with map mode.
-        const sub = centrifuge.newMapSubscription('cursors:room1', {
-            limit: 50
-        });
+        const sub = centrifuge.newMapSubscription('cursors:room1');
 
         sub.on('sync', (ctx) => {
             console.log('Synced cursors channel');

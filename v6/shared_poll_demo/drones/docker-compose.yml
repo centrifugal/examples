@@ -1,17 +1,12 @@
 services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
   backend:
     build: ./backend
     ports:
       - "3001:3001"
     environment:
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      - redis
+      CENTRIFUGO_URL: http://host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   nginx:
     image: nginx:latest

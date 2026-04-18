@@ -64,7 +64,8 @@
       },
       "publication_data_format": "json_object",
       "allow_subscribe_for_client": true,
-      "allow_publish_for_client": true
+      "allow_publish_for_client": true,
+      "client_publish_debounce_interval": "200ms"
     },
     {
       "name": "games",
@@ -72,7 +73,7 @@
       "map_clients_presence_channel_prefix": "clients:",
       "map_users_presence_channel_prefix": "users:",
       "map": {
-        "mode": "durable",
+        "mode": "recoverable",
         "key_ttl": "60s"
       },
       "allow_subscribe_for_client": true
@@ -83,7 +84,7 @@
       "map_clients_presence_channel_prefix": "clients:",
       "map_users_presence_channel_prefix": "users:",
       "map": {
-        "mode": "durable",
+        "mode": "recoverable",
         "key_ttl": "60s"
       },
       "allow_subscribe_for_client": true
@@ -92,7 +93,7 @@
       "name": "clients",
       "subscription_type": "map_clients",
       "map": {
-        "mode": "durable",
+        "mode": "recoverable",
         "key_ttl": "60s"
       },
       "allow_subscribe_for_client": true
@@ -101,7 +102,7 @@
       "name": "users",
       "subscription_type": "map_users",
       "map": {
-        "mode": "durable",
+        "mode": "recoverable",
         "key_ttl": "60s"
       },
       "allow_subscribe_for_client": true
@@ -164,15 +165,6 @@
       "map": {
         "mode": "persistent",
         "min_page_size": 1
-      },
-      "allow_subscribe_for_client": true
-    },
-    {
-      "name": "orders",
-      "subscription_type": "map",
-      "map": {
-        "mode": "persistent",
-        "external_state": true
       },
       "allow_subscribe_for_client": true
     }]

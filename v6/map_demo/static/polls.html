@@ -387,8 +387,8 @@
         });
 
         // Two subscriptions: metadata and results (with scores).
-        const metaSub = centrifuge.newMapSubscription('poll:meta', { limit: 10 });
-        const resultsSub = centrifuge.newMapSubscription('poll:results', { limit: 50 });
+        const metaSub = centrifuge.newMapSubscription('poll:meta');
+        const resultsSub = centrifuge.newMapSubscription('poll:results');
 
         // Use sync/update events (like board.html) instead of subscribed/publication.
         // sync fires only when full state rebuild is needed (initial subscribe or

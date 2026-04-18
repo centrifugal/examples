@@ -4,16 +4,10 @@
     "insecure": true
   },
   "shared_poll": {
-    "hmac_secret_key": "demo-drones-secret",
-    "notification": {
-      "enabled": true,
-      "type": "redis",
-      "redis": {
-        "address": "redis://localhost:6379"
-      },
-      "batch_max_size": 100,
-      "batch_max_delay": "100ms"
-    }
+    "hmac_secret_key": "demo-drones-secret"
+  },
+  "http_api": {
+    "key": "demo-drones-api-key"
   },
   "client": {
     "allowed_origins": ["*"],
@@ -32,12 +26,10 @@
         "name": "drones",
         "subscription_type": "shared_poll",
         "shared_poll": {
-          "refresh_interval": "1s",
+          "refresh_interval": "5s",
           "refresh_batch_size": 500,
-          "mode": "versionless",
-          "max_keys_per_connection": 500,
-          "max_consecutive_absences": 3,
-          "keep_latest_data": true
+          "mode": "versioned",
+          "max_keys_per_connection": 500
         },
         "allow_subscribe_for_client": true
       }

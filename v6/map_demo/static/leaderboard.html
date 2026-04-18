@@ -451,9 +451,7 @@
         });
 
         // Subscribe to leaderboard channel with map mode and ordering.
-        const sub = centrifuge.newMapSubscription('leaderboard:main', {
-            limit: 100,
-        });
+        const sub = centrifuge.newMapSubscription('leaderboard:main');
 
         sub.on('sync', (ctx) => {
             console.log('Synced leaderboard');
