@@ -563,19 +563,25 @@ async def viz_stats():
 # ===================================================================
 # Background task: Ticker
 # ===================================================================
-TICKERS = [
-    {"symbol": "AAPL", "base": 178.50, "sector": "tech"},
-    {"symbol": "GOOG", "base": 141.20, "sector": "tech"},
-    {"symbol": "AMZN", "base": 178.90, "sector": "ecommerce"},
-    {"symbol": "MSFT", "base": 378.50, "sector": "enterprise"},
-    {"symbol": "TSLA", "base": 248.50, "sector": "auto"},
-    {"symbol": "META", "base": 505.75, "sector": "media"},
-    {"symbol": "NFLX", "base": 628.30, "sector": "media"},
-    {"symbol": "NVDA", "base": 875.40, "sector": "tech"},
-    {"symbol": "AMD", "base": 172.60, "sector": "tech"},
-    {"symbol": "UBER", "base": 78.25, "sector": "tech"},
-    {"symbol": "SHOP", "base": 78.60, "sector": "ecommerce"},
+_SECTORS = ["tech", "ecommerce", "auto", "media", "enterprise"]
+_SEED_TICKERS = [
+    ("AAPL", 178.50), ("GOOG", 141.20), ("AMZN", 178.90), ("MSFT", 378.50),
+    ("TSLA", 248.50), ("META", 505.75), ("NFLX", 628.30), ("NVDA", 875.40),
+    ("AMD", 172.60), ("UBER", 78.25), ("SHOP", 78.60), ("CRM", 272.30),
 ]
+
+def _generate_tickers(n: int) -> list[dict]:
+    tickers = []
+    for sym, base in _SEED_TICKERS:
+        tickers.append({"symbol": sym, "base": base, "sector": random.choice(_SECTORS)})
+    for i in range(len(_SEED_TICKERS), n):
+        sym = f"T{i:04d}"
+        base = round(random.uniform(5.0, 1000.0), 2)
+        sector = _SECTORS[i % len(_SECTORS)]
+        tickers.append({"symbol": sym, "base": base, "sector": sector})
+    return tickers
+
+TICKERS = _generate_tickers(1000)
 
 ticker_prices: dict[str, float] = {}
 
@@ -588,7 +594,7 @@ async def ticker_task():
     while True:
         try:
             await asyncio.sleep(0.5)
-            n = random.randint(2, 4)
+            n = random.randint(200, 400)
             selected = random.sample(TICKERS, min(n, len(TICKERS)))
             for t in selected:
                 sym = t["symbol"]

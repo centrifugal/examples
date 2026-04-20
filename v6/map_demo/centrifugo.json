@@ -23,6 +23,17 @@
     }
   },
 
+  "map_brokers": [
+    {
+      "name": "memory_cached",
+      "enabled": true,
+      "type": "memory",
+      "cache": {
+        "enabled": true
+      }
+    }
+  ],
+
   "proxies": [
     {
       "name": "backend",
@@ -112,9 +123,17 @@
       "subscription_type": "map",
       "map": {
         "mode": "ephemeral",
-        "key_ttl": "60s"
+        "key_ttl": "60s",
+        "broker_name": "memory_cached",
+        "full_state_channel_prefix": "fullstate:",
+        "full_state_tick_interval": "50ms"
       },
       "allow_tags_filter": true,
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "fullstate",
+      "allowed_delta_types": ["fossil"],
       "allow_subscribe_for_client": true
     },
     {
