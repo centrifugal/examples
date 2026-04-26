@@ -154,14 +154,6 @@
       "allow_subscribe_for_client": true
     },
     {
-      "name": "leaderboard",
-      "subscription_type": "map",
-      "map": {
-        "mode": "persistent"
-      },
-      "allow_subscribe_for_client": true
-    },
-    {
       "name": "poll",
       "subscription_type": "map",
       "map": {
@@ -173,8 +165,7 @@
       "name": "board",
       "subscription_type": "map",
       "map": {
-        "mode": "persistent",
-        "ordered": true
+        "mode": "persistent"
       },
       "allow_subscribe_for_client": true
     },

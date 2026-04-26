@@ -7,7 +7,6 @@ import random
 import string
 import time
 import uuid
-from datetime import timedelta
 
 import asyncpg
 import httpx
@@ -97,9 +96,7 @@ def decode_entry_data(raw) -> dict:
 # ===================================================================
 async def pg_map_publish(
     channel: str, key: str, data: dict, *,
-    score: int | None = None,
     key_mode: str | None = None,
-    meta_ttl: timedelta | None = None,
 ) -> dict:
     row = await pool.fetchrow(
         """
@@ -107,12 +104,10 @@ async def pg_map_publish(
             p_channel := $1,
             p_key := $2,
             p_data := $3::jsonb,
-            p_score := $4,
-            p_key_mode := $5,
-            p_meta_ttl := $6
+            p_key_mode := $4
         )
         """,
-        channel, key, json.dumps(data), score, key_mode, meta_ttl,
+        channel, key, json.dumps(data), key_mode,
     )
     return {
         "offset": row["channel_offset"],
@@ -352,53 +347,6 @@ async def handle_inventory_restock(data: dict, user: str, client: str) -> dict:
 
 
 # ===================================================================
-# Leaderboard (PostgreSQL direct)
-# ===================================================================
-@app.post("/api/leaderboard/join")
-async def leaderboard_join(request: Request):
-    data = await request.json()
-    user_id = data.get("userId", "")
-    name = data.get("name", "Anonymous")
-    color = data.get("color", "#888")
-    entry_data = {"userId": user_id, "name": name, "score": 0, "color": color}
-    try:
-        await pg_map_publish("leaderboard:main", user_id, entry_data, score=0)
-    except Exception as e:
-        logger.exception("leaderboard join error")
-        return JSONResponse({"error": str(e)}, status_code=500)
-    return JSONResponse({"entry": entry_data})
-
-
-@app.post("/api/leaderboard/click")
-async def leaderboard_click(request: Request):
-    data = await request.json()
-    user_id = data.get("userId", "")
-
-    row = await pool.fetchrow(
-        "SELECT data, score FROM cf_map_state WHERE channel = 'leaderboard:main' AND key = $1",
-        user_id,
-    )
-    if not row:
-        return JSONResponse({"error": "not found"}, status_code=404)
-
-    current_data = row["data"] if isinstance(row["data"], dict) else json.loads(row["data"])
-    current_score = row["score"] or 0
-    new_score = current_score + 1
-    current_data["score"] = new_score
-
-    await pg_map_publish("leaderboard:main", user_id, current_data, score=new_score)
-    return JSONResponse({"entry": current_data})
-
-
-@app.post("/api/leaderboard/leave")
-async def leaderboard_leave(request: Request):
-    data = await request.json()
-    user_id = data.get("userId", "")
-    await pg_map_remove("leaderboard:main", user_id)
-    return JSONResponse({"success": True})
-
-
-# ===================================================================
 # Polls (PostgreSQL transactional)
 # ===================================================================
 @app.post("/api/poll/vote")
@@ -486,7 +434,7 @@ async def board_create(request: Request):
         "color": data.get("color", "#888"),
         "created": now,
     }
-    await pg_map_publish("board:main", task_id, task_data, score=now)
+    await pg_map_publish("board:main", task_id, task_data)
     return JSONResponse({"taskId": task_id})
 
 
@@ -494,7 +442,6 @@ async def board_create(request: Request):
 async def board_update(request: Request):
     data = await request.json()
     task_id = data.get("taskId", "")
-    score = data.get("score")
     task_data = {
         "title": data.get("title", ""),
         "status": data.get("status", "todo"),
@@ -504,8 +451,7 @@ async def board_update(request: Request):
         "color": data.get("color", "#888"),
         "created": data.get("created", 0),
     }
-    score_val = int(score) if score is not None else None
-    await pg_map_publish("board:main", task_id, task_data, score=score_val)
+    await pg_map_publish("board:main", task_id, task_data)
     return JSONResponse({"success": True})
 
 
@@ -894,12 +840,11 @@ async def poll_manager_task():
             }
             await pg_map_publish("poll:meta", poll_id, meta)
 
-            # Publish initial option scores.
+            # Publish initial option entries.
             for opt in options:
                 await pg_map_publish(
                     "poll:results", opt["id"],
                     {"optionId": opt["id"], "label": opt["label"], "color": opt["color"]},
-                    score=0,
                 )
 
             logger.info("Poll started: %s — %s", poll_id, poll["question"])

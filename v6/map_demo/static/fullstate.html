@@ -70,6 +70,10 @@
         </div>
 
         <div class="info-box">
+            <strong>Centrifugo PRO only.</strong> The tick-based full-state channel (<code>full_state_channel_prefix</code> + <code>full_state_tick_interval</code>) is available in Centrifugo PRO.
+        </div>
+
+        <div class="info-box">
             <strong>How it works:</strong> The server serializes the entire map state into one JSON blob every 50ms (20 fps). Fossil delta compression computes the diff between consecutive frames. The client receives one small delta per tick instead of many individual key updates. Bandwidth savings scale with collection size.
         </div>
 

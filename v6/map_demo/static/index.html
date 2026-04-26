@@ -115,6 +115,16 @@
             font-weight: 600;
             margin-bottom: 8px;
         }
+        .pro-notice {
+            display: inline-block;
+            background: rgba(217, 119, 6, 0.15);
+            color: #B45309;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
@@ -201,6 +211,7 @@
                 <span class="feature">Tick-based</span>
                 <span class="feature">20 fps</span>
             </div>
+            <span class="pro-notice">Centrifugo PRO only</span>
             <p>Same ticker data delivered as a single delta-compressed full-state frame per tick. Compare bandwidth with the per-key Stock Tickers demo.</p>
             <a href="/fullstate.html">Open Demo</a>
         </div>
@@ -250,20 +261,6 @@
             <a href="/polls.html">Open Demo</a>
         </div>
 
-        <div class="demo-card">
-            <div class="demo-header">
-                <div class="icon">🏆</div>
-                <h2>Leaderboard (PostgreSQL)</h2>
-            </div>
-            <div class="features">
-                <span class="feature">Native PG</span>
-                <span class="feature">Persistent</span>
-                <span class="feature">Ordered</span>
-            </div>
-            <span class="pg-notice">Works with PostgreSQL only</span>
-            <p>Persistent leaderboard using native PostgreSQL cf_map_* functions.</p>
-            <a href="/leaderboard.html">Open Demo</a>
-        </div>
     </div>
 </body>
 </html>
