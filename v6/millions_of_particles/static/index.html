@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2 million particles — Centrifugo</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, sans-serif;
+            background: #000;
+            color: rgba(255,255,255,0.92);
+        }
+        /* Fills the viewport. Canvas centers inside; overflow is clipped
+           so smaller windows show a smaller area of the same world. */
+        .stage {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #000;
+        }
+        canvas {
+            display: block;
+            background: #000;
+            cursor: crosshair;
+            image-rendering: pixelated;
+            flex-shrink: 0;
+        }
+        .overlay {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .overlay > div { background: rgba(0,0,0,0.55); border-radius: 6px; padding: 8px 12px; }
+        h1 { font-size: 14px; font-weight: 600; }
+        .meta {
+            font-size: 11px;
+            color: rgba(255,255,255,0.55);
+            margin-top: 2px;
+        }
+        .toolbar {
+            display: flex;
+            gap: 14px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.55);
+            font-variant-numeric: tabular-nums;
+        }
+        .toolbar .v { color: #80e27e; }
+    </style>
+</head>
+<body>
+<div class="overlay">
+    <div>
+        <h1>2,000,000 particles · Go · Centrifugo</h1>
+        <div class="meta">Click and drag to attract. All viewers see the same world.</div>
+    </div>
+    <div class="toolbar">
+        <span>status: <span class="v" id="status">connecting…</span></span>
+        <span>frames: <span class="v" id="frames">0</span></span>
+        <span>fps: <span class="v" id="fps">0</span></span>
+        <span>kbps: <span class="v" id="kbps">0</span></span>
+    </div>
+</div>
+<div class="stage">
+    <canvas id="grid"></canvas>
+</div>
+
+<script src="https://unpkg.com/centrifuge@^5/dist/centrifuge.protobuf.js"></script>
+<script>
+(async function () {
+    const cfgRes = await fetch('/config');
+    const cfg = await cfgRes.json();
+    const VW = cfg.viewportW;
+    const VH = cfg.viewportH;
+    const VX = cfg.viewportX;
+    const VY = cfg.viewportY;
+
+    const statusEl = document.getElementById('status');
+    const framesEl = document.getElementById('frames');
+    const fpsEl = document.getElementById('fps');
+    const kbpsEl = document.getElementById('kbps');
+
+    const canvas = document.getElementById('grid');
+    canvas.width = VW;
+    canvas.height = VH;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, VW, VH);
+
+    // Reusable ImageData buffer + Uint32 view for fast pixel writes.
+    const img = ctx.createImageData(VW, VH);
+    const buf = new Uint32Array(img.data.buffer);
+    const BLACK = 0xff000000;
+
+    // Precomputed gradient image: each pixel holds the colour that "on"
+    // bits at that position render with. Mirrors the WebGL shader from
+    // the original demo: color = (normX, normY, 1-normX). Cluster bits
+    // pick up whatever colour is at that screen position, so the same
+    // particle changes hue as it moves across the world.
+    const GRAD = new Uint32Array(VW * VH);
+    for (let y = 0; y < VH; y++) {
+        const ny = y / VH;
+        const g = Math.round(ny * 255) & 0xff;
+        for (let x = 0; x < VW; x++) {
+            const nx = x / VW;
+            const r = Math.round(nx * 255) & 0xff;
+            const b = Math.round((1 - nx) * 255) & 0xff;
+            // RGBA little-endian: 0xAABBGGRR
+            GRAD[y * VW + x] = 0xff000000 | (b << 16) | (g << 8) | r;
+        }
+    }
+
+    function renderBitmap(bytes) {
+        // Memset the whole buffer to BLACK once (Uint32Array.fill is a
+        // single memset under the hood) — then only write coloured pixels
+        // for bits that are on. Sparse-region bytes (mostly 0x00) skip
+        // entirely.
+        buf.fill(BLACK);
+        const len = bytes.length;
+        let p = 0;
+        for (let i = 0; i < len; i++, p += 8) {
+            const b = bytes[i];
+            if (b === 0) continue;
+            if (b === 0xff) {
+                buf.set(GRAD.subarray(p, p + 8), p);
+                continue;
+            }
+            if (b & 1)   buf[p]   = GRAD[p];
+            if (b & 2)   buf[p+1] = GRAD[p+1];
+            if (b & 4)   buf[p+2] = GRAD[p+2];
+            if (b & 8)   buf[p+3] = GRAD[p+3];
+            if (b & 16)  buf[p+4] = GRAD[p+4];
+            if (b & 32)  buf[p+5] = GRAD[p+5];
+            if (b & 64)  buf[p+6] = GRAD[p+6];
+            if (b & 128) buf[p+7] = GRAD[p+7];
+        }
+        ctx.putImageData(img, 0, 0);
+    }
+
+    // ---- Stats ----
+    let frames = 0;
+    let bytesThisSec = 0;
+    let framesThisSec = 0;
+    setInterval(() => {
+        fpsEl.textContent = framesThisSec;
+        kbpsEl.textContent = (bytesThisSec / 1024).toFixed(1);
+        framesThisSec = 0;
+        bytesThisSec = 0;
+    }, 1000);
+
+    // ---- Centrifuge with Protobuf transport for binary publications ----
+    const centrifuge = new Centrifuge('ws://' + window.location.host + '/connection/websocket', {
+        protocol: 'protobuf',
+        name: 'particles-viewer',
+    });
+    centrifuge.on('connecting', () => statusEl.textContent = 'connecting…');
+    centrifuge.on('connected',  () => statusEl.textContent = 'connected');
+    centrifuge.on('disconnected', () => statusEl.textContent = 'disconnected');
+
+    const sub = centrifuge.newSubscription('particles:frame');
+    sub.on('publication', (ctx) => {
+        const bytes = ctx.data instanceof Uint8Array ? ctx.data : new Uint8Array(ctx.data);
+        bytesThisSec += bytes.length;
+        framesThisSec++;
+        frames++;
+        framesEl.textContent = frames;
+        renderBitmap(bytes);
+    });
+    sub.subscribe();
+    centrifuge.connect();
+
+    // ---- Input — translate canvas-local CSS pixels to world coords. ----
+    function eventToWorld(e) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = (e.clientX - rect.left) / rect.width;  // 0..1
+        const cy = (e.clientY - rect.top)  / rect.height; // 0..1
+        return {
+            x: VX + cx * VW,
+            y: VY + cy * VH,
+        };
+    }
+
+    let down = false;
+    let pending = null;
+    let throttled = false;
+
+    // RPC.data is bytes in the protobuf protocol — pass JSON-encoded UTF-8
+    // and Centrifugo will surface it to the backend proxy as `data`.
+    const enc = new TextEncoder();
+    function flush() {
+        if (!pending) { throttled = false; return; }
+        const p = pending;
+        pending = null;
+        const payload = enc.encode(JSON.stringify({ x: p.x, y: p.y, down: p.down }));
+        centrifuge.rpc('input', payload).catch((err) => console.error('rpc err', err));
+        setTimeout(flush, 33); // ~30 hz
+    }
+
+    function send(world, isDown) {
+        pending = { x: world.x, y: world.y, down: isDown };
+        if (!throttled) {
+            throttled = true;
+            flush();
+        }
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        down = true;
+        send(eventToWorld(e), true);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+        if (!down) return;
+        send(eventToWorld(e), true);
+    });
+    window.addEventListener('mouseup', (e) => {
+        if (!down) return;
+        down = false;
+        send(eventToWorld(e), false);
+    });
+
+    // Touch — passive false so preventDefault works for scrolling.
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        down = true;
+        if (e.touches.length > 0) send(eventToWorld(e.touches[0]), true);
+    }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!down || e.touches.length === 0) return;
+        send(eventToWorld(e.touches[0]), true);
+    }, { passive: false });
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (!down) return;
+        down = false;
+        if (e.changedTouches.length > 0) send(eventToWorld(e.changedTouches[0]), false);
+    }, { passive: false });
+})();
+</script>
+</body>
+</html>

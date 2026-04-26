@@ -1,0 +1,40 @@
+{
+  "client": {
+    "allowed_origins": ["*"],
+    "allow_anonymous_connect_without_token": true,
+    "insecure": true
+  },
+
+  "health": {
+    "enabled": true
+  },
+
+  "http_api": {
+    "key": "particles-demo-api-key",
+    "external": true
+  },
+
+  "proxies": [
+    {
+      "name": "backend",
+      "endpoint": "http://backend:3001/centrifugo/rpc",
+      "timeout": "3s"
+    }
+  ],
+
+  "rpc": {
+    "without_namespace": {
+      "proxy_enabled": true,
+      "proxy_name": "backend"
+    }
+  },
+
+  "channel": {
+    "namespaces": [
+      {
+        "name": "particles",
+        "allow_subscribe_for_client": true
+      }
+    ]
+  }
+}
