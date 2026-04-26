@@ -34,13 +34,32 @@ type Input struct {
 }
 
 type SimConfig struct {
-	WorldWidth, WorldHeight    int
-	ParticleCount              int
-	ViewportX, ViewportY       int
-	ViewportW, ViewportH       int
-	FPS                        int
-	PublishEveryNTicks         int
-	InputTTL                   time.Duration
+	WorldWidth, WorldHeight int
+	ParticleCount           int
+	ViewportX, ViewportY    int
+	ViewportW, ViewportH    int
+	// Downsample factor. 1 = pack one output cell per world pixel (full
+	// resolution). K = OR over each K×K world block — output bitmap is
+	// 1/K² the size, blurry per-particle but full-world coverage.
+	Downsample         int
+	FPS                int
+	PublishEveryNTicks int
+	InputTTL           time.Duration
+}
+
+// BitmapDims returns the dimensions of the packed bitmap the viewer
+// receives — output cells along each axis after downsampling, with
+// width rounded up to a multiple of 8 for clean bit-packing. The
+// padded columns at the right edge are always zero (no world data).
+func (cfg SimConfig) BitmapDims() (w, h int) {
+	K := cfg.Downsample
+	if K < 1 {
+		K = 1
+	}
+	wOut := (cfg.ViewportW + K - 1) / K
+	hOut := (cfg.ViewportH + K - 1) / K
+	wPadded := ((wOut + 7) / 8) * 8
+	return wPadded, hOut
 }
 
 type Sim struct {
@@ -251,7 +270,11 @@ func bytesToUint64Unsafe(b []byte) uint64 {
 }
 
 // packViewport extracts the configured rectangle from worldBuf (1 byte per
-// pixel, 0 or 1) and packs it as 1 bit per pixel, 8 pixels per byte.
+// pixel, 0 or 1) and packs it into a 1-bpp bitmap. With Downsample > 1,
+// each output cell is the OR of a K×K world block — which loses
+// per-particle precision in dense regions but cuts bytes by K² and lets
+// the same channel publish carry the entire world to every viewer at a
+// fraction of the full-resolution cost.
 func packViewport(worldBuf []byte, cfg SimConfig) []byte {
 	x, y := cfg.ViewportX, cfg.ViewportY
 	width, height := cfg.ViewportW, cfg.ViewportH
@@ -259,7 +282,21 @@ func packViewport(worldBuf []byte, cfg SimConfig) []byte {
 		x+width > cfg.WorldWidth || y+height > cfg.WorldHeight {
 		return nil
 	}
-	// LUT for packing 8 0/1 bytes into a bitmap byte.
+	K := cfg.Downsample
+	if K < 1 {
+		K = 1
+	}
+	if K == 1 {
+		return packFull(worldBuf, cfg)
+	}
+	return packDownsampled(worldBuf, cfg, K)
+}
+
+// packFull is the fast path: output cell == world pixel, 8-byte LUT pack
+// per row chunk. Requires width to be a multiple of 8.
+func packFull(worldBuf []byte, cfg SimConfig) []byte {
+	x, y := cfg.ViewportX, cfg.ViewportY
+	width, height := cfg.ViewportW, cfg.ViewportH
 	lut := getPackLUT()
 	out := make([]byte, (width*height+7)/8)
 	idx := 0
@@ -270,6 +307,50 @@ func packViewport(worldBuf []byte, cfg SimConfig) []byte {
 			key := bytesToUint64Unsafe(worldBuf[i : i+8])
 			out[idx] = lut[key]
 			idx++
+		}
+	}
+	return out
+}
+
+// packDownsampled writes one output bit per K×K world block (set if any
+// world pixel in the block is nonzero). Output width is rounded up to
+// a multiple of 8 with the trailing columns left as zero (no world data
+// there) so the on-wire format is byte-aligned per row and the decoder
+// stays a flat per-byte unpack loop.
+func packDownsampled(worldBuf []byte, cfg SimConfig, K int) []byte {
+	bw, bh := cfg.BitmapDims()
+	wOut := (cfg.ViewportW + K - 1) / K
+	bytesPerRow := bw / 8
+
+	out := make([]byte, bytesPerRow*bh)
+
+	for outY := 0; outY < bh; outY++ {
+		startWY := cfg.ViewportY + outY*K
+		rowOff := outY * bytesPerRow
+		for outX := 0; outX < wOut; outX++ {
+			startWX := cfg.ViewportX + outX*K
+			on := false
+		check:
+			for dy := 0; dy < K; dy++ {
+				wy := startWY + dy
+				if wy >= cfg.WorldHeight {
+					break
+				}
+				rowW := wy * cfg.WorldWidth
+				for dx := 0; dx < K; dx++ {
+					wx := startWX + dx
+					if wx >= cfg.WorldWidth {
+						break
+					}
+					if worldBuf[rowW+wx] != 0 {
+						on = true
+						break check
+					}
+				}
+			}
+			if on {
+				out[rowOff+outX>>3] |= 1 << (outX & 7)
+			}
 		}
 	}
 	return out

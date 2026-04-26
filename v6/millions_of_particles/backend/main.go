@@ -42,8 +42,10 @@ func main() {
 		ViewportY:          envInt("VIEWPORT_Y", 0),
 		ViewportW:          envInt("VIEWPORT_W", 2200),
 		ViewportH:          envInt("VIEWPORT_H", 2200),
+		// 1 = full resolution (~605 KB/frame). 3 ≈ 9× smaller (~67 KB).
+		Downsample:         envInt("DOWNSAMPLE", 3),
 		FPS:                60,
-		PublishEveryNTicks: 2, // sim 60 Hz, publish 30 Hz
+		PublishEveryNTicks: 1, // publish every sim tick — 60 fps
 	}
 
 	api := NewCentrifugoAPI(apiURL, apiKey)
@@ -99,14 +101,18 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
+		bw, bh := cfg.BitmapDims()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]int{
-			"worldWidth":  cfg.WorldWidth,
-			"worldHeight": cfg.WorldHeight,
-			"viewportX":   cfg.ViewportX,
-			"viewportY":   cfg.ViewportY,
-			"viewportW":   cfg.ViewportW,
-			"viewportH":   cfg.ViewportH,
+			"worldWidth":    cfg.WorldWidth,
+			"worldHeight":   cfg.WorldHeight,
+			"viewportX":     cfg.ViewportX,
+			"viewportY":     cfg.ViewportY,
+			"viewportW":     cfg.ViewportW,
+			"viewportH":     cfg.ViewportH,
+			"bitmapW":       bw,
+			"bitmapH":       bh,
+			"downsample":    cfg.Downsample,
 			"particleCount": cfg.ParticleCount,
 		})
 	})

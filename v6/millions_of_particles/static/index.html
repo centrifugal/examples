@@ -81,10 +81,16 @@
 (async function () {
     const cfgRes = await fetch('/config');
     const cfg = await cfgRes.json();
+    // World viewport — used for mapping mouse coords to world coords.
     const VW = cfg.viewportW;
     const VH = cfg.viewportH;
     const VX = cfg.viewportX;
     const VY = cfg.viewportY;
+    // Bitmap dimensions — canvas is sized to these. With downsample > 1
+    // these are smaller than the world viewport (each cell covers a K×K
+    // world block). Width is rounded up to a multiple of 8.
+    const BW = cfg.bitmapW;
+    const BH = cfg.bitmapH;
 
     const statusEl = document.getElementById('status');
     const framesEl = document.getElementById('frames');
@@ -92,32 +98,32 @@
     const kbpsEl = document.getElementById('kbps');
 
     const canvas = document.getElementById('grid');
-    canvas.width = VW;
-    canvas.height = VH;
+    canvas.width = BW;
+    canvas.height = BH;
     const ctx = canvas.getContext('2d', { alpha: false });
     ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, VW, VH);
+    ctx.fillRect(0, 0, BW, BH);
 
     // Reusable ImageData buffer + Uint32 view for fast pixel writes.
-    const img = ctx.createImageData(VW, VH);
+    const img = ctx.createImageData(BW, BH);
     const buf = new Uint32Array(img.data.buffer);
     const BLACK = 0xff000000;
 
     // Precomputed gradient image: each pixel holds the colour that "on"
     // bits at that position render with. Mirrors the WebGL shader from
-    // the original demo: color = (normX, normY, 1-normX). Cluster bits
-    // pick up whatever colour is at that screen position, so the same
-    // particle changes hue as it moves across the world.
-    const GRAD = new Uint32Array(VW * VH);
-    for (let y = 0; y < VH; y++) {
-        const ny = y / VH;
+    // the original demo: color = (normX, normY, 1-normX). Cluster cells
+    // pick up the colour of their screen position, so a particle's hue
+    // shifts as it moves across the world.
+    const GRAD = new Uint32Array(BW * BH);
+    for (let y = 0; y < BH; y++) {
+        const ny = y / BH;
         const g = Math.round(ny * 255) & 0xff;
-        for (let x = 0; x < VW; x++) {
-            const nx = x / VW;
+        for (let x = 0; x < BW; x++) {
+            const nx = x / BW;
             const r = Math.round(nx * 255) & 0xff;
             const b = Math.round((1 - nx) * 255) & 0xff;
             // RGBA little-endian: 0xAABBGGRR
-            GRAD[y * VW + x] = 0xff000000 | (b << 16) | (g << 8) | r;
+            GRAD[y * BW + x] = 0xff000000 | (b << 16) | (g << 8) | r;
         }
     }
 

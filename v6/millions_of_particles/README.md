@@ -2,11 +2,17 @@
 
 A Go backend simulates 2,000,000 particles in a 2200 × 2200 world at 60 Hz.
 Every other tick it packs the entire world into a 1-bpp bitmap
-(~605 KB) and publishes the bytes to the `particles:frame` channel via
-Centrifugo's HTTP API. All connected browsers subscribe to the same
-channel using the **Protobuf transport** so the bitmap arrives as raw
-`Uint8Array`, then unpack and render it to a 2200 × 2200 canvas via
-`ImageData`.
+(~67 KB at the default 3× downsample) and publishes the bytes to the
+`particles:frame` channel via Centrifugo's HTTP API. All connected
+browsers subscribe to the same channel using the **Protobuf transport**
+so the bitmap arrives as raw `Uint8Array`, then unpack and render it
+via `ImageData`.
+
+Each output bitmap cell is the OR over a `DOWNSAMPLE × DOWNSAMPLE`
+block of world pixels — so the whole world fits in one publish at a
+fraction of the full-resolution byte cost, while still showing every
+cluster's shape. Set `DOWNSAMPLE=1` to publish at full world
+resolution (~605 KB/frame) for sharper individual particles.
 
 The canvas is shown at native resolution and centered inside an
 `overflow: hidden` container — so smaller windows just show a smaller
@@ -64,12 +70,13 @@ VIEWPORT_W=1200
 VIEWPORT_H=1200
 ```
 
-Bandwidth: `W * H / 8` bytes per frame × 30 fps. The default
-2200 × 2200 publishes ~605 KB/frame, ~18 MB/s per viewer. Smaller
-viewports cut this proportionally — e.g. 1600 × 1600 ≈ 320 KB/frame,
-~9.6 MB/s. The published frame is the same for everyone, so
-publish-side bandwidth (backend → Centrifugo) stays constant
-regardless of viewer count.
+Bandwidth: `(W/K) * (H/K) / 8` bytes per frame × 30 fps, where `K` is
+`DOWNSAMPLE`. With the default `K=3`, a 2200 × 2200 world publishes
+~67 KB/frame, ~2 MB/s per viewer. `K=1` (full resolution) is
+~605 KB/frame, ~18 MB/s per viewer. The published frame is the same
+for everyone, so publish-side bandwidth (backend → Centrifugo) stays
+constant regardless of viewer count — only Centrifugo → viewer fan-out
+scales with viewer count.
 
 ## How the bytes flow
 
