@@ -1,0 +1,47 @@
+{
+  "client": {
+    "allowed_origins": ["*"],
+    "allow_anonymous_connect_without_token": true,
+    "insecure": true
+  },
+
+  "http_api": {
+    "key": "presence-demo-api-key",
+    "external": true
+  },
+
+  "channel": {
+    "namespaces": [
+      {
+        "name": "clients_100k",
+        "subscription_type": "map_clients",
+        "map": {
+          "mode": "recoverable",
+          "key_ttl": "24h",
+          "stream_size": 50000,
+          "stream_ttl": "5m",
+          "default_page_size": 1000,
+          "min_page_size": 1,
+          "max_page_size": 10000,
+          "subscribe_catch_up_timeout": "30m"
+        },
+        "allow_subscribe_for_client": true
+      },
+      {
+        "name": "clients_1m",
+        "subscription_type": "map_clients",
+        "map": {
+          "mode": "recoverable",
+          "key_ttl": "24h",
+          "stream_size": 200000,
+          "stream_ttl": "10m",
+          "default_page_size": 1000,
+          "min_page_size": 1,
+          "max_page_size": 10000,
+          "subscribe_catch_up_timeout": "30m"
+        },
+        "allow_subscribe_for_client": true
+      }
+    ]
+  }
+}
