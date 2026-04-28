@@ -89,7 +89,12 @@ type SharedPollItem struct {
 // shared_poll_publish commands — avoids one HTTP round-trip per tile per
 // tick. The publish is direct (fast path), bypassing the timer-based
 // poll cycle.
-func (c *CentrifugoAPI) BatchSharedPollPublish(ctx context.Context, channel string, items []SharedPollItem) error {
+//
+// epoch is the publisher's per-channel epoch. A fresh value at process
+// startup ensures Centrifugo invalidates connected subscribers when the
+// publisher restarts, so they re-track from version 0 on resubscribe
+// instead of being frozen by a version regression.
+func (c *CentrifugoAPI) BatchSharedPollPublish(ctx context.Context, channel string, epoch string, items []SharedPollItem) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -101,6 +106,7 @@ func (c *CentrifugoAPI) BatchSharedPollPublish(ctx context.Context, channel stri
 				"key":     it.Key,
 				"b64data": base64.StdEncoding.EncodeToString(it.Data),
 				"version": it.Version,
+				"epoch":   epoch,
 			},
 		})
 	}

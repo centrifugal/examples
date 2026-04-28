@@ -32,6 +32,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -141,18 +143,18 @@ func startFanoutMode(ctx context.Context, api *CentrifugoAPI, sim *Sim, cfg SimC
 // ---------- Shared-poll mode: 16×16 tile grid, batch publish ----------
 
 func startSharedPollMode(ctx context.Context, api *CentrifugoAPI, sim *Sim, cfg SimConfig, hmacSecret string, mux *http.ServeMux) {
-	// Single monotonic version counter shared by all tiles per tick.
-	// Seeded from the current Unix time in milliseconds so versions
-	// always advance across backend restarts. Without this seed, an
-	// in-process counter would reset to 0 on restart while Centrifugo
-	// still holds the higher version from before — clients tracking
-	// with cached high versions would never see fresh updates and
-	// the picture would freeze until they re-track.
-	var globalVersion uint64 = uint64(time.Now().UnixMilli())
+	// Per-process channel epoch. Centrifugo's shared-poll versioned mode
+	// detects an epoch change (vs the channel's stored value) as a
+	// publisher restart and unsubscribes all current subscribers with
+	// insufficient-state code. Their SDKs auto-resubscribe and re-track
+	// from version 0, picking up fresh state. So restart-survival comes
+	// for free — versions can be a plain monotonic counter starting at 0.
+	channelEpoch := uuid.NewString()
+	var globalVersion uint64
 
 	mux.HandleFunc("/api/tiles", tilesHandler(sim, cfg))
 	mux.HandleFunc("/api/track_refresh", trackRefreshHandler(hmacSecret, channelSharedPoll))
-	mux.HandleFunc("/centrifugo/refresh", sharedPollRefreshHandler(sim, cfg))
+	mux.HandleFunc("/centrifugo/refresh", sharedPollRefreshHandler(sim, cfg, channelEpoch))
 
 	frames := make(chan [][]byte, 2)
 	go func() {
@@ -166,7 +168,7 @@ func startSharedPollMode(ctx context.Context, api *CentrifugoAPI, sim *Sim, cfg 
 					Version: v,
 				})
 			}
-			if err := api.BatchSharedPollPublish(ctx, channelSharedPoll, items); err != nil && ctx.Err() == nil {
+			if err := api.BatchSharedPollPublish(ctx, channelSharedPoll, channelEpoch, items); err != nil && ctx.Err() == nil {
 				log.Printf("batch publish err: %v", err)
 			}
 		}
@@ -234,7 +236,9 @@ func trackRefreshHandler(secret, channel string) http.HandlerFunc {
 // /centrifugo/refresh — Centrifugo's safety-net poll proxy. Returns
 // current tile payloads + versions for keys requested by Centrifugo.
 // Called on cold-key tracking and on the configured refresh interval.
-func sharedPollRefreshHandler(sim *Sim, cfg SimConfig) http.HandlerFunc {
+// The epoch is included in the response so Centrifugo can detect publisher
+// restarts on the refresh path (in addition to the direct-publish path).
+func sharedPollRefreshHandler(sim *Sim, cfg SimConfig, epoch string) http.HandlerFunc {
 	type respItem struct {
 		Key     string `json:"key"`
 		B64Data string `json:"b64data"`
@@ -256,7 +260,10 @@ func sharedPollRefreshHandler(sim *Sim, cfg SimConfig) http.HandlerFunc {
 		_ = cfg
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"result": map[string]any{"items": []respItem{}},
+			"result": map[string]any{
+				"items": []respItem{},
+				"epoch": epoch,
+			},
 		})
 	}
 }

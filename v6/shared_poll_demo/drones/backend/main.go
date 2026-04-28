@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -78,6 +80,12 @@ var (
 	cellVersions map[string]uint64
 	version      uint64
 
+	// channelEpoch is fresh per process startup. On restart Centrifugo
+	// detects the change and unsubscribes connected clients with
+	// insufficient-state code so they re-track from version 0 on
+	// resubscribe — picture recovers cleanly without page reload.
+	channelEpoch = uuid.NewString()
+
 	centrifugoURL string
 	httpClient    = &http.Client{
 		Timeout: 5 * time.Second,
@@ -116,6 +124,7 @@ func publishLoop() {
 				"key":     p.key,
 				"b64data": b64,
 				"version": p.version,
+				"epoch":   channelEpoch,
 			})
 			req, _ := http.NewRequest("POST", centrifugoURL+"/api/shared_poll_publish", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
@@ -352,22 +361,40 @@ func handleCentrifugoRefresh(w http.ResponseWriter, r *http.Request) {
 		Data    any    `json:"data"`
 		Version uint64 `json:"version"`
 	}
+	currentVersion := version
 	items := make([]respItem, 0, len(req.Items))
 	for _, it := range req.Items {
 		ds := cells[it.Key]
 		if ds == nil {
 			ds = []DronePos{}
 		}
+		v := cellVersions[it.Key]
+		if v == 0 {
+			// Cell has no drones currently. Report the global current
+			// version so Centrifugo's per-key version comparison advances
+			// past whatever stale entry.version it may hold — otherwise
+			// the empty-list response gets dropped as "unchanged" and
+			// previously-rendered drones linger on subscribers' screens.
+			// This matters specifically after backend restart: the new
+			// publisher process has no memory of pre-restart cells, so
+			// it never publishes "this cell is empty now" via the direct
+			// publish path; the refresh proxy is the only path that can
+			// communicate the absence, and only if its version advances.
+			v = currentVersion
+		}
 		items = append(items, respItem{
 			Key:     it.Key,
 			Data:    map[string]any{"drones": ds},
-			Version: cellVersions[it.Key],
+			Version: v,
 		})
 	}
 	mu.RUnlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"items": items}})
+	json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{
+		"items": items,
+		"epoch": channelEpoch,
+	}})
 }
 
 func main() {
