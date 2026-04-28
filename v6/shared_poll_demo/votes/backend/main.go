@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -186,7 +185,6 @@ func initDB() {
 func makeTrackSignature(secret, channel string, keys []string, user string, ttl int) string {
 	now := time.Now().Unix()
 	expiry := now + int64(ttl)
-	sort.Strings(keys)
 	keysHash := sha256.Sum256([]byte(strings.Join(keys, "\x00")))
 	payload := fmt.Sprintf("%d:%d:%s:%s:%x", now, expiry, user, channel, keysHash)
 	mac := hmac.New(sha256.New, []byte(secret))
