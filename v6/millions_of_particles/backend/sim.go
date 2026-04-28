@@ -138,11 +138,12 @@ func (s *Sim) snapshotInputs() []Input {
 	return active
 }
 
-// Run drives the simulation loop. onFrame is called with a fresh viewport
-// bitmap (1 bit per pixel, packed 8 pixels per byte, row-major) every
-// PublishEveryNTicks ticks. The bitmap covers (ViewportX, ViewportY,
-// ViewportW, ViewportH) in world coordinates.
-func (s *Sim) Run(ctx context.Context, onFrame func([]byte)) {
+// Run drives the simulation loop. onTick is called every PublishEveryNTicks
+// ticks with the fresh world buffer (one byte per world pixel, 0 or 1).
+// The callback runs synchronously inside the tick — it's the caller's job
+// to pack/copy whatever it needs and return quickly. The buffer is reused
+// next tick.
+func (s *Sim) Run(ctx context.Context, onTick func([]byte)) {
 	numThreads := int(math.Min(math.Max(float64(runtime.NumCPU()-1), 1), 8))
 	particlesPerThread := s.cfg.ParticleCount / numThreads
 
@@ -200,7 +201,7 @@ func (s *Sim) Run(ctx context.Context, onFrame func([]byte)) {
 			wg.Wait()
 
 			if willPublish {
-				onFrame(packViewport(worldBuf, s.cfg))
+				onTick(worldBuf)
 			}
 		}
 	}

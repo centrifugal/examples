@@ -5,19 +5,19 @@
     "insecure": true
   },
 
-  "health": {
-    "enabled": true
-  },
-
   "http_api": {
     "key": "particles-demo-api-key",
     "external": true
   },
 
+  "shared_poll": {
+    "hmac_secret_key": "particles-demo-hmac-secret"
+  },
+
   "proxies": [
     {
       "name": "backend",
-      "endpoint": "http://backend:3001/centrifugo/rpc",
+      "endpoint": "http://localhost:3001/centrifugo/rpc",
       "timeout": "3s"
     }
   ],
@@ -30,10 +30,28 @@
   },
 
   "channel": {
+    "proxy": {
+      "shared_poll_refresh": {
+        "endpoint": "http://localhost:3001/centrifugo/refresh",
+        "timeout": "5s"
+      }
+    },
     "namespaces": [
       {
         "name": "particles",
         "allow_subscribe_for_client": true
+      },
+      {
+        "name": "tiles",
+        "allow_subscribe_for_client": true,
+        "subscription_type": "shared_poll",
+        "shared_poll": {
+          "refresh_interval": "10s",
+          "refresh_batch_size": 256,
+          "mode": "versioned",
+          "max_keys_per_connection": 256,
+          "publish_enabled": true
+        }
       }
     ]
   }

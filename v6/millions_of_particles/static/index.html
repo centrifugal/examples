@@ -12,8 +12,6 @@
             background: #000;
             color: rgba(255,255,255,0.92);
         }
-        /* Fills the viewport. Canvas centers inside; overflow is clipped
-           so smaller windows show a smaller area of the same world. */
         .stage {
             position: fixed;
             inset: 0;
@@ -57,202 +55,574 @@
             font-variant-numeric: tabular-nums;
         }
         .toolbar .v { color: #80e27e; }
+        .mode-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: #1e293b;
+            color: #93c5fd;
+            margin-left: 6px;
+        }
     </style>
 </head>
 <body>
 <div class="overlay">
     <div>
-        <h1>2,000,000 particles · Go · Centrifugo</h1>
-        <div class="meta">Click and drag to attract. All viewers see the same world.</div>
+        <h1>2,000,000 particles · Go · Centrifugo<span class="mode-badge" id="modeBadge">…</span></h1>
+        <div class="meta" id="modeHint">Loading…</div>
     </div>
     <div class="toolbar">
         <span>status: <span class="v" id="status">connecting…</span></span>
         <span>frames: <span class="v" id="frames">0</span></span>
-        <span>fps: <span class="v" id="fps">0</span></span>
+        <span>publish/s: <span class="v" id="fps">0</span></span>
+        <span id="paintStat" style="display:none">paint/s: <span class="v" id="paintRate">0</span></span>
         <span>kbps: <span class="v" id="kbps">0</span></span>
+        <span id="tilesStat" style="display:none">tiles: <span class="v" id="tilesTracked">0</span></span>
     </div>
 </div>
 <div class="stage">
     <canvas id="grid"></canvas>
 </div>
 
-<script src="https://unpkg.com/centrifuge@^5/dist/centrifuge.protobuf.js"></script>
+<script src="http://localhost:2000/centrifuge.protobuf.js"></script>
 <script>
 (async function () {
-    const cfgRes = await fetch('/config');
-    const cfg = await cfgRes.json();
-    // World viewport — used for mapping mouse coords to world coords.
-    const VW = cfg.viewportW;
-    const VH = cfg.viewportH;
-    const VX = cfg.viewportX;
-    const VY = cfg.viewportY;
-    // Bitmap dimensions — canvas is sized to these. With downsample > 1
-    // these are smaller than the world viewport (each cell covers a K×K
-    // world block). Width is rounded up to a multiple of 8.
-    const BW = cfg.bitmapW;
-    const BH = cfg.bitmapH;
+    const cfg = await fetch('/config').then(r => r.json());
+    document.getElementById('modeBadge').textContent = cfg.mode;
 
-    const statusEl = document.getElementById('status');
-    const framesEl = document.getElementById('frames');
-    const fpsEl = document.getElementById('fps');
-    const kbpsEl = document.getElementById('kbps');
+    if (cfg.mode === 'fanout') runFanout(cfg);
+    else if (cfg.mode === 'shared_poll') runSharedPoll(cfg);
+    else throw new Error('unknown mode: ' + cfg.mode);
+})();
 
-    const canvas = document.getElementById('grid');
-    canvas.width = BW;
-    canvas.height = BH;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, BW, BH);
+// ===================================================================
+// Common helpers
+// ===================================================================
 
-    // Reusable ImageData buffer + Uint32 view for fast pixel writes.
-    const img = ctx.createImageData(BW, BH);
-    const buf = new Uint32Array(img.data.buffer);
-    const BLACK = 0xff000000;
+const BLACK = 0xff000000;
+const enc = new TextEncoder();
 
-    // Precomputed gradient image: each pixel holds the colour that "on"
-    // bits at that position render with. Mirrors the WebGL shader from
-    // the original demo: color = (normX, normY, 1-normX). Cluster cells
-    // pick up the colour of their screen position, so a particle's hue
-    // shifts as it moves across the world.
-    const GRAD = new Uint32Array(BW * BH);
-    for (let y = 0; y < BH; y++) {
-        const ny = y / BH;
-        const g = Math.round(ny * 255) & 0xff;
-        for (let x = 0; x < BW; x++) {
-            const nx = x / BW;
-            const r = Math.round(nx * 255) & 0xff;
-            const b = Math.round((1 - nx) * 255) & 0xff;
-            // RGBA little-endian: 0xAABBGGRR
-            GRAD[y * BW + x] = 0xff000000 | (b << 16) | (g << 8) | r;
-        }
-    }
-
-    function renderBitmap(bytes) {
-        // Memset the whole buffer to BLACK once (Uint32Array.fill is a
-        // single memset under the hood) — then only write coloured pixels
-        // for bits that are on. Sparse-region bytes (mostly 0x00) skip
-        // entirely.
-        buf.fill(BLACK);
-        const len = bytes.length;
-        let p = 0;
-        for (let i = 0; i < len; i++, p += 8) {
-            const b = bytes[i];
-            if (b === 0) continue;
-            if (b === 0xff) {
-                buf.set(GRAD.subarray(p, p + 8), p);
-                continue;
-            }
-            if (b & 1)   buf[p]   = GRAD[p];
-            if (b & 2)   buf[p+1] = GRAD[p+1];
-            if (b & 4)   buf[p+2] = GRAD[p+2];
-            if (b & 8)   buf[p+3] = GRAD[p+3];
-            if (b & 16)  buf[p+4] = GRAD[p+4];
-            if (b & 32)  buf[p+5] = GRAD[p+5];
-            if (b & 64)  buf[p+6] = GRAD[p+6];
-            if (b & 128) buf[p+7] = GRAD[p+7];
-        }
-        ctx.putImageData(img, 0, 0);
-    }
-
-    // ---- Stats ----
-    let frames = 0;
-    let bytesThisSec = 0;
-    let framesThisSec = 0;
+function setStatus(text) { document.getElementById('status').textContent = text; }
+function bumpFrame(stats) {
+    stats.framesThisSec++;
+    stats.framesTotal++;
+    document.getElementById('frames').textContent = stats.framesTotal;
+}
+function makeStats() {
+    const s = { framesTotal: 0, framesThisSec: 0, bytesThisSec: 0 };
     setInterval(() => {
-        fpsEl.textContent = framesThisSec;
-        kbpsEl.textContent = (bytesThisSec / 1024).toFixed(1);
-        framesThisSec = 0;
-        bytesThisSec = 0;
+        document.getElementById('fps').textContent = s.framesThisSec;
+        document.getElementById('kbps').textContent = (s.bytesThisSec / 1024).toFixed(1);
+        s.framesThisSec = 0;
+        s.bytesThisSec = 0;
     }, 1000);
-
-    // ---- Centrifuge with Protobuf transport for binary publications ----
-    const centrifuge = new Centrifuge('ws://' + window.location.host + '/connection/websocket', {
-        protocol: 'protobuf',
-        name: 'particles-viewer',
-    });
-    centrifuge.on('connecting', () => statusEl.textContent = 'connecting…');
-    centrifuge.on('connected',  () => statusEl.textContent = 'connected');
-    centrifuge.on('disconnected', () => statusEl.textContent = 'disconnected');
-
-    const sub = centrifuge.newSubscription('particles:frame');
-    sub.on('publication', (ctx) => {
-        const bytes = ctx.data instanceof Uint8Array ? ctx.data : new Uint8Array(ctx.data);
-        bytesThisSec += bytes.length;
-        framesThisSec++;
-        frames++;
-        framesEl.textContent = frames;
-        renderBitmap(bytes);
-    });
-    sub.subscribe();
-    centrifuge.connect();
-
-    // ---- Input — translate canvas-local CSS pixels to world coords. ----
-    function eventToWorld(e) {
-        const rect = canvas.getBoundingClientRect();
-        const cx = (e.clientX - rect.left) / rect.width;  // 0..1
-        const cy = (e.clientY - rect.top)  / rect.height; // 0..1
-        return {
-            x: VX + cx * VW,
-            y: VY + cy * VH,
-        };
+    return s;
+}
+function buildGradient(w, h) {
+    const grad = new Uint32Array(w * h);
+    for (let y = 0; y < h; y++) {
+        const ny = y / h;
+        const g = (ny * 255) | 0;
+        for (let x = 0; x < w; x++) {
+            const nx = x / w;
+            const r = (nx * 255) | 0;
+            const b = ((1 - nx) * 255) | 0;
+            grad[y * w + x] = 0xff000000 | (b << 16) | (g << 8) | r;
+        }
     }
+    return grad;
+}
 
-    let down = false;
+// RPC helper that JSON-encodes the payload to bytes (Protobuf transport
+// requires data to be a Uint8Array; centrifuge-js doesn't auto-serialize).
+function makeInputSender(centrifuge) {
     let pending = null;
     let throttled = false;
-
-    // RPC.data is bytes in the protobuf protocol — pass JSON-encoded UTF-8
-    // and Centrifugo will surface it to the backend proxy as `data`.
-    const enc = new TextEncoder();
     function flush() {
         if (!pending) { throttled = false; return; }
         const p = pending;
         pending = null;
         const payload = enc.encode(JSON.stringify({ x: p.x, y: p.y, down: p.down }));
-        centrifuge.rpc('input', payload).catch((err) => console.error('rpc err', err));
-        setTimeout(flush, 33); // ~30 hz
+        centrifuge.rpc('input', payload).catch(() => {});
+        setTimeout(flush, 33);
     }
-
-    function send(world, isDown) {
+    return function send(world, isDown) {
         pending = { x: world.x, y: world.y, down: isDown };
-        if (!throttled) {
-            throttled = true;
-            flush();
+        if (!throttled) { throttled = true; flush(); }
+    };
+}
+
+// ===================================================================
+// Fanout mode — one channel, shared bitmap (with optional downsample),
+// canvas centered in window with overflow:hidden clipping.
+// ===================================================================
+
+function runFanout(cfg) {
+    document.getElementById('modeHint').textContent = 'Left-click drag to attract. Right-click drag (or arrow keys / WASD) to pan over the world.';
+    document.getElementById('paintStat').style.display = '';
+
+    const BW = cfg.bitmapW, BH = cfg.bitmapH;
+
+    // Display canvas is window-sized. The world buffer is the full
+    // bitmap; each rAF blits the camera-cropped slice into the
+    // display canvas. Same pattern as shared_poll mode.
+    const canvas = document.getElementById('grid');
+    function fitCanvas() {
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    fitCanvas();
+    window.addEventListener('resize', fitCanvas);
+    const ctx = canvas.getContext('2d', { alpha: false });
+
+    // Full bitmap pixels (RGBA), updated whole-buffer on each publication.
+    const worldBuf = new Uint32Array(BW * BH);
+    const GRAD = buildGradient(BW, BH);
+
+    function decodeBitmap(bytes) {
+        const len = bytes.length;
+        let p = 0;
+        for (let i = 0; i < len; i++, p += 8) {
+            const b = bytes[i];
+            if (b === 0) {
+                worldBuf[p]=BLACK; worldBuf[p+1]=BLACK; worldBuf[p+2]=BLACK; worldBuf[p+3]=BLACK;
+                worldBuf[p+4]=BLACK; worldBuf[p+5]=BLACK; worldBuf[p+6]=BLACK; worldBuf[p+7]=BLACK;
+                continue;
+            }
+            if (b === 0xff) { worldBuf.set(GRAD.subarray(p, p + 8), p); continue; }
+            worldBuf[p]   = (b & 1)   ? GRAD[p]   : BLACK;
+            worldBuf[p+1] = (b & 2)   ? GRAD[p+1] : BLACK;
+            worldBuf[p+2] = (b & 4)   ? GRAD[p+2] : BLACK;
+            worldBuf[p+3] = (b & 8)   ? GRAD[p+3] : BLACK;
+            worldBuf[p+4] = (b & 16)  ? GRAD[p+4] : BLACK;
+            worldBuf[p+5] = (b & 32)  ? GRAD[p+5] : BLACK;
+            worldBuf[p+6] = (b & 64)  ? GRAD[p+6] : BLACK;
+            worldBuf[p+7] = (b & 128) ? GRAD[p+7] : BLACK;
         }
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-        down = true;
-        send(eventToWorld(e), true);
+    // Camera in *world* coords — top-left of visible area in the bitmap.
+    // Centred on the world initially.
+    let camX = Math.max(0, ((BW - canvas.width)  / 2) | 0);
+    let camY = Math.max(0, ((BH - canvas.height) / 2) | 0);
+    function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+    let displayImg, displayBuf;
+    function rebuildDisplayBuf() {
+        displayImg = ctx.createImageData(canvas.width, canvas.height);
+        displayBuf = new Uint32Array(displayImg.data.buffer);
+    }
+    rebuildDisplayBuf();
+
+    let paintsThisSec = 0;
+    setInterval(() => {
+        document.getElementById('paintRate').textContent = paintsThisSec;
+        paintsThisSec = 0;
+    }, 1000);
+
+    function rafLoop() {
+        if (displayImg.width !== canvas.width || displayImg.height !== canvas.height) {
+            rebuildDisplayBuf();
+        }
+        const vpW = canvas.width, vpH = canvas.height;
+        for (let y = 0; y < vpH; y++) {
+            const sy = camY + y;
+            const dstOff = y * vpW;
+            if (sy < 0 || sy >= BH) {
+                displayBuf.fill(BLACK, dstOff, dstOff + vpW);
+                continue;
+            }
+            const srcRow = sy * BW;
+            if (camX >= 0 && camX + vpW <= BW) {
+                displayBuf.set(worldBuf.subarray(srcRow + camX, srcRow + camX + vpW), dstOff);
+            } else {
+                for (let x = 0; x < vpW; x++) {
+                    const sx = camX + x;
+                    displayBuf[dstOff + x] = (sx >= 0 && sx < BW) ? worldBuf[srcRow + sx] : BLACK;
+                }
+            }
+        }
+        ctx.putImageData(displayImg, 0, 0);
+        paintsThisSec++;
+        requestAnimationFrame(rafLoop);
+    }
+    requestAnimationFrame(rafLoop);
+
+    const stats = makeStats();
+    const centrifuge = new Centrifuge('ws://' + location.host + '/connection/websocket', {
+        protocol: 'protobuf', name: 'particles-viewer',
     });
-    canvas.addEventListener('mousemove', (e) => {
-        if (!down) return;
-        send(eventToWorld(e), true);
+    centrifuge.on('connecting',   () => setStatus('connecting…'));
+    centrifuge.on('connected',    () => setStatus('connected'));
+    centrifuge.on('disconnected', () => setStatus('disconnected'));
+
+    const sub = centrifuge.newSubscription(cfg.channel);
+    sub.on('publication', (pubCtx) => {
+        const bytes = pubCtx.data instanceof Uint8Array ? pubCtx.data : new Uint8Array(pubCtx.data);
+        stats.bytesThisSec += bytes.length;
+        bumpFrame(stats);
+        decodeBitmap(bytes);
     });
-    window.addEventListener('mouseup', (e) => {
-        if (!down) return;
-        down = false;
-        send(eventToWorld(e), false);
+    sub.subscribe();
+    centrifuge.connect();
+
+    // Mouse → world coords. Camera offset translates display pixels to
+    // bitmap pixels; for K=1 that's world coords directly. For K=3, the
+    // bitmap is downsampled, so multiply by K to recover world.
+    const downsample = cfg.downsample || 1;
+    const sendInput = makeInputSender(centrifuge);
+    function evToWorld(e) {
+        const rect = canvas.getBoundingClientRect();
+        const bx = camX + (e.clientX - rect.left);
+        const by = camY + (e.clientY - rect.top);
+        return { x: bx * downsample, y: by * downsample };
+    }
+
+    let attractDown = false;
+    canvas.addEventListener('mousedown', e => {
+        if (e.button !== 0) return;
+        attractDown = true; sendInput(evToWorld(e), true);
+    });
+    canvas.addEventListener('mousemove', e => { if (attractDown) sendInput(evToWorld(e), true); });
+    window.addEventListener('mouseup', e => {
+        if (!attractDown || e.button !== 0) return;
+        attractDown = false; sendInput(evToWorld(e), false);
     });
 
-    // Touch — passive false so preventDefault works for scrolling.
-    canvas.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        down = true;
-        if (e.touches.length > 0) send(eventToWorld(e.touches[0]), true);
-    }, { passive: false });
-    canvas.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        if (!down || e.touches.length === 0) return;
-        send(eventToWorld(e.touches[0]), true);
-    }, { passive: false });
-    canvas.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        if (!down) return;
-        down = false;
-        if (e.changedTouches.length > 0) send(eventToWorld(e.changedTouches[0]), false);
-    }, { passive: false });
-})();
+    // Right-click drag = pan.
+    let panDown = false, panX = 0, panY = 0;
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('mousedown', e => {
+        if (e.button !== 2) return;
+        panDown = true; panX = e.clientX; panY = e.clientY;
+        canvas.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mousemove', e => {
+        if (!panDown) return;
+        const dx = e.clientX - panX, dy = e.clientY - panY;
+        panX = e.clientX; panY = e.clientY;
+        camX = clamp(camX - dx, 0, Math.max(0, BW - canvas.width));
+        camY = clamp(camY - dy, 0, Math.max(0, BH - canvas.height));
+    });
+    window.addEventListener('mouseup', e => {
+        if (e.button !== 2) return;
+        panDown = false;
+        canvas.style.cursor = 'crosshair';
+    });
+
+    // Arrow keys / WASD.
+    const keys = new Set();
+    window.addEventListener('keydown', e => {
+        if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)) {
+            keys.add(e.key); e.preventDefault();
+        }
+    });
+    window.addEventListener('keyup', e => keys.delete(e.key));
+    setInterval(() => {
+        if (!keys.size) return;
+        const step = 30;
+        let dx = 0, dy = 0;
+        if (keys.has('ArrowLeft')  || keys.has('a')) dx -= step;
+        if (keys.has('ArrowRight') || keys.has('d')) dx += step;
+        if (keys.has('ArrowUp')    || keys.has('w')) dy -= step;
+        if (keys.has('ArrowDown')  || keys.has('s')) dy += step;
+        camX = clamp(camX + dx, 0, Math.max(0, BW - canvas.width));
+        camY = clamp(camY + dy, 0, Math.max(0, BH - canvas.height));
+    }, 16);
+}
+
+// ===================================================================
+// Shared-poll mode — 16×16 tile grid, viewer tracks visible tiles +
+// prefetch margin, pan with arrow keys / WASD / right-click drag.
+// Click + drag with left button = attractor (matches fanout mode).
+// ===================================================================
+
+function runSharedPoll(cfg) {
+    document.getElementById('modeHint').textContent = 'Drag with right mouse button (or arrow keys / WASD) to pan. Left-click drag to attract.';
+    document.getElementById('tilesStat').style.display = '';
+    document.getElementById('paintStat').style.display = '';
+
+    let paintsThisSec = 0;
+    setInterval(() => {
+        document.getElementById('paintRate').textContent = paintsThisSec;
+        paintsThisSec = 0;
+    }, 1000);
+
+    const WORLD_W = cfg.worldWidth;
+    const WORLD_H = cfg.worldHeight;
+    const TILES_PER_SIDE = cfg.tilesPerSide;
+    const TILE_SIZE = cfg.tileWorldSide;
+    const TILE_ROW_BYTES = cfg.tilePackedRowBytes;
+
+    // Display canvas — sized to the visible window. We render the
+    // current camera crop of the world buffer here every rAF.
+    const canvas = document.getElementById('grid');
+    function fitCanvas() {
+        canvas.width  = Math.min(window.innerWidth,  WORLD_W);
+        canvas.height = Math.min(window.innerHeight, WORLD_H);
+    }
+    fitCanvas();
+    window.addEventListener('resize', () => { fitCanvas(); updateTracking(); });
+    const ctx = canvas.getContext('2d', { alpha: false });
+
+    // World pixel buffer — Uint32Array of WORLD_W × WORLD_H pixels.
+    // Tile updates write directly into this. Each rAF, the camera crop
+    // is copied into the display ImageData and pushed via putImageData.
+    const worldBuf = new Uint32Array(WORLD_W * WORLD_H);
+    const GRAD = buildGradient(WORLD_W, WORLD_H);
+
+    // Camera (top-left of visible region in world coords). Start at
+    // an interesting central position so the first frame isn't all
+    // black corners.
+    let camX = Math.max(0, (WORLD_W - canvas.width)  / 2) | 0;
+    let camY = Math.max(0, (WORLD_H - canvas.height) / 2) | 0;
+
+    // Decode one tile's packed bitmap into worldBuf at its world
+    // position. Per-byte fast paths for empty/full common cases.
+    function applyTile(tx, ty, bytes) {
+        const startX = tx * TILE_SIZE;
+        const startY = ty * TILE_SIZE;
+        const yMax = Math.min(TILE_SIZE, WORLD_H - startY);
+        const xMax = Math.min(TILE_SIZE, WORLD_W - startX);
+        for (let row = 0; row < yMax; row++) {
+            const rowOff = row * TILE_ROW_BYTES;
+            const worldRowOff = (startY + row) * WORLD_W;
+            const baseP = worldRowOff + startX;
+            let col = 0;
+            for (let bx = 0; bx < TILE_ROW_BYTES; bx++) {
+                if (col >= xMax) break;
+                const b = bytes[rowOff + bx];
+                const remaining = Math.min(8, xMax - col);
+                if (b === 0) {
+                    for (let k = 0; k < remaining; k++) worldBuf[baseP + col + k] = BLACK;
+                    col += 8;
+                    continue;
+                }
+                for (let bit = 0; bit < remaining; bit++) {
+                    const p = baseP + col + bit;
+                    worldBuf[p] = ((b >> bit) & 1) ? GRAD[p] : BLACK;
+                }
+                col += 8;
+            }
+        }
+    }
+
+    // Wipe a tile's region in worldBuf to BLACK. Used when the SDK
+    // signals a key was removed (e.g. after we untrack on pan) so
+    // stale pixels don't linger when the camera passes over again.
+    function clearTile(tx, ty) {
+        const startX = tx * TILE_SIZE;
+        const startY = ty * TILE_SIZE;
+        const yMax = Math.min(TILE_SIZE, WORLD_H - startY);
+        const xMax = Math.min(TILE_SIZE, WORLD_W - startX);
+        for (let row = 0; row < yMax; row++) {
+            const off = (startY + row) * WORLD_W + startX;
+            for (let x = 0; x < xMax; x++) worldBuf[off + x] = BLACK;
+        }
+    }
+
+    // Build display ImageData on demand (resize-aware).
+    let displayImg, displayBuf;
+    function rebuildDisplayBuf() {
+        displayImg = ctx.createImageData(canvas.width, canvas.height);
+        displayBuf = new Uint32Array(displayImg.data.buffer);
+    }
+    rebuildDisplayBuf();
+
+    // Render loop — copy camera crop from worldBuf to displayBuf.
+    // rAF runs at the browser's display rate; the toolbar's "fps" tracks
+    // the *publish* rate (incremented when a new tile version arrives).
+    function rafLoop() {
+        if (displayImg.width !== canvas.width || displayImg.height !== canvas.height) {
+            rebuildDisplayBuf();
+        }
+        const vpW = canvas.width, vpH = canvas.height;
+        for (let y = 0; y < vpH; y++) {
+            const sy = camY + y;
+            if (sy < 0 || sy >= WORLD_H) {
+                displayBuf.fill(BLACK, y * vpW, (y + 1) * vpW);
+                continue;
+            }
+            const srcOff = sy * WORLD_W + camX;
+            const dstOff = y * vpW;
+            if (camX >= 0 && camX + vpW <= WORLD_W) {
+                displayBuf.set(worldBuf.subarray(srcOff, srcOff + vpW), dstOff);
+            } else {
+                for (let x = 0; x < vpW; x++) {
+                    const sx = camX + x;
+                    displayBuf[dstOff + x] = (sx >= 0 && sx < WORLD_W) ? worldBuf[sy * WORLD_W + sx] : BLACK;
+                }
+            }
+        }
+        ctx.putImageData(displayImg, 0, 0);
+        paintsThisSec++;
+        requestAnimationFrame(rafLoop);
+    }
+    requestAnimationFrame(rafLoop);
+
+    // ---- Tile tracking ----
+    const stats = makeStats();
+    const trackedKeys = new Set();
+    const tilesStatEl = document.getElementById('tilesTracked');
+
+    function visibleTileKeys() {
+        const margin = TILE_SIZE; // 1-tile prefetch
+        const x0 = Math.max(0, Math.floor((camX - margin) / TILE_SIZE));
+        const y0 = Math.max(0, Math.floor((camY - margin) / TILE_SIZE));
+        const x1 = Math.min(TILES_PER_SIDE - 1, Math.floor((camX + canvas.width  + margin) / TILE_SIZE));
+        const y1 = Math.min(TILES_PER_SIDE - 1, Math.floor((camY + canvas.height + margin) / TILE_SIZE));
+        const out = new Set();
+        for (let ty = y0; ty <= y1; ty++) {
+            for (let tx = x0; tx <= x1; tx++) {
+                out.add(`t_${tx}_${ty}`);
+            }
+        }
+        return out;
+    }
+
+    let centrifuge, sub;
+
+    function updateTracking() {
+        if (!sub) return;
+        const want = visibleTileKeys();
+        const toTrack = [];
+        for (const k of want) if (!trackedKeys.has(k)) toTrack.push(k);
+        const toUntrack = [];
+        for (const k of trackedKeys) if (!want.has(k)) toUntrack.push(k);
+
+        if (toUntrack.length) {
+            for (const k of toUntrack) trackedKeys.delete(k);
+            sub.untrack(toUntrack);
+        }
+        if (toTrack.length) {
+            for (const k of toTrack) trackedKeys.add(k);
+            // Track with version 0 — server will deliver current state on first tick.
+            sub.track(toTrack.map(k => ({ key: k, version: 0 })));
+        }
+        tilesStatEl.textContent = trackedKeys.size;
+    }
+
+    // ---- Centrifuge wiring ----
+    centrifuge = new Centrifuge('ws://' + location.host + '/connection/websocket', {
+        protocol: 'protobuf', name: 'particles-viewer',
+    });
+    centrifuge.on('connecting',   () => setStatus('connecting…'));
+    centrifuge.on('connected',    () => setStatus('connected'));
+    centrifuge.on('disconnected', () => setStatus('disconnected'));
+
+    sub = centrifuge.newSharedPollSubscription(cfg.channel, {
+        getSignature: async (sigCtx) => {
+            const resp = await fetch('/api/track_refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keys: sigCtx.keys, channel: cfg.channel }),
+            });
+            return resp.json();
+        },
+    });
+    // All tiles share a per-tick monotonic version (each tile's version
+    // is bumped once per publish on the backend). Tracking the max
+    // version seen across all tiles gives us the publish-tick count.
+    let maxVersion = 0;
+    sub.on('update', (pubCtx) => {
+        const m = /^t_(\d+)_(\d+)$/.exec(pubCtx.key);
+        if (!m) return;
+        const tx = +m[1], ty = +m[2];
+        if (pubCtx.removed) {
+            // Key untracked — wipe its area so stale pixels don't linger.
+            clearTile(tx, ty);
+            return;
+        }
+        if (!pubCtx.data) return;
+        const bytes = pubCtx.data instanceof Uint8Array ? pubCtx.data : new Uint8Array(pubCtx.data);
+        stats.bytesThisSec += bytes.length;
+        if (pubCtx.version && pubCtx.version > maxVersion) {
+            maxVersion = pubCtx.version;
+            bumpFrame(stats); // one new publish tick observed
+        }
+        applyTile(tx, ty, bytes);
+    });
+    sub.subscribe();
+    centrifuge.connect();
+    updateTracking();
+
+    // ---- Input — left-click drag = attractor ----
+    const sendInput = makeInputSender(centrifuge);
+    function evToWorld(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: camX + (e.clientX - rect.left),
+            y: camY + (e.clientY - rect.top),
+        };
+    }
+    let attractDown = false;
+    canvas.addEventListener('mousedown', e => {
+        if (e.button !== 0) return;
+        attractDown = true;
+        sendInput(evToWorld(e), true);
+    });
+    canvas.addEventListener('mousemove', e => {
+        if (attractDown) sendInput(evToWorld(e), true);
+    });
+    window.addEventListener('mouseup', e => {
+        if (!attractDown || e.button !== 0) return;
+        attractDown = false;
+        sendInput(evToWorld(e), false);
+    });
+
+    // ---- Pan — right-click drag, arrow keys, WASD ----
+    let panDown = false, panX = 0, panY = 0;
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('mousedown', e => {
+        if (e.button !== 2) return;
+        panDown = true;
+        panX = e.clientX;
+        panY = e.clientY;
+        canvas.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mousemove', e => {
+        if (!panDown) return;
+        const dx = e.clientX - panX;
+        const dy = e.clientY - panY;
+        panX = e.clientX;
+        panY = e.clientY;
+        camX = clamp(camX - dx, 0, Math.max(0, WORLD_W - canvas.width));
+        camY = clamp(camY - dy, 0, Math.max(0, WORLD_H - canvas.height));
+        updateTracking();
+    });
+    window.addEventListener('mouseup', e => {
+        if (e.button !== 2) return;
+        panDown = false;
+        canvas.style.cursor = 'crosshair';
+    });
+    function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+    // Keyboard pan — continuous while held.
+    const keys = new Set();
+    window.addEventListener('keydown', e => {
+        if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)) {
+            keys.add(e.key);
+            e.preventDefault();
+        }
+    });
+    window.addEventListener('keyup', e => keys.delete(e.key));
+    setInterval(() => {
+        if (!keys.size) return;
+        const step = 30;
+        let dx = 0, dy = 0;
+        if (keys.has('ArrowLeft')  || keys.has('a')) dx -= step;
+        if (keys.has('ArrowRight') || keys.has('d')) dx += step;
+        if (keys.has('ArrowUp')    || keys.has('w')) dy -= step;
+        if (keys.has('ArrowDown')  || keys.has('s')) dy += step;
+        if (dx || dy) {
+            camX = clamp(camX + dx, 0, Math.max(0, WORLD_W - canvas.width));
+            camY = clamp(camY + dy, 0, Math.max(0, WORLD_H - canvas.height));
+            updateTracking();
+        }
+    }, 16);
+}
 </script>
 </body>
 </html>

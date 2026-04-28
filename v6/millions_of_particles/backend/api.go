@@ -78,6 +78,35 @@ func (c *CentrifugoAPI) PublishBinary(ctx context.Context, channel string, data 
 	})
 }
 
+// SharedPollItem is one (key, data, version) entry for batched shared-poll publish.
+type SharedPollItem struct {
+	Key     string
+	Data    []byte
+	Version uint64
+}
+
+// BatchSharedPollPublish sends one /api/batch request containing N
+// shared_poll_publish commands — avoids one HTTP round-trip per tile per
+// tick. The publish is direct (fast path), bypassing the timer-based
+// poll cycle.
+func (c *CentrifugoAPI) BatchSharedPollPublish(ctx context.Context, channel string, items []SharedPollItem) error {
+	if len(items) == 0 {
+		return nil
+	}
+	commands := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		commands = append(commands, map[string]any{
+			"shared_poll_publish": map[string]any{
+				"channel": channel,
+				"key":     it.Key,
+				"b64data": base64.StdEncoding.EncodeToString(it.Data),
+				"version": it.Version,
+			},
+		})
+	}
+	return c.call(ctx, "batch", map[string]any{"commands": commands})
+}
+
 // WaitReady polls /api/info until Centrifugo accepts requests, or ctx is done.
 func (c *CentrifugoAPI) WaitReady(ctx context.Context) error {
 	for {

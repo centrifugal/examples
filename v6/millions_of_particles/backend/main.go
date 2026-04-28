@@ -1,12 +1,16 @@
 // 2 million particle multiplayer simulation served over Centrifugo.
 //
-// The backend runs the simulation locally and publishes a single shared
-// viewport bitmap (1 bit per pixel) to the `particles:frame` channel
-// every 30 fps via Centrifugo's HTTP API. All connected browsers
-// subscribe to the same channel and render the same frame — they're
-// looking at the same window into the world. Each client can also
-// affect the simulation by sending an attractor position via RPC,
-// which Centrifugo proxies to this backend.
+// Two modes selectable via the MODE env var:
+//
+//   - fanout (default) — one shared bitmap of the world is published to
+//     a single channel; every viewer receives the same bytes. Browser
+//     window clips the centered canvas. No panning.
+//
+//   - shared_poll — the world is split into a 16×16 tile grid; each tile
+//     is one key on a shared-poll subscription. Each viewer tracks the
+//     tiles its viewport intersects (with a prefetch margin). Backend
+//     publishes all tiles each tick via the batch API; Centrifugo fans
+//     out only the tiles each viewer tracks. Pan/zoom over the world.
 //
 // Adapted from https://dgerrells.com/blog/how-fast-is-go-simulating-millions-of-particles-on-a-smart-tv
 // — see sim.go for the simulation code (lifted with minor changes from
@@ -24,15 +28,26 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
 
-const channel = "particles:frame"
+const (
+	channelFanout     = "particles:frame"
+	channelSharedPoll = "tiles:world"
+)
 
 func main() {
 	apiURL := envOr("CENTRIFUGO_API_URL", "http://localhost:8000/api")
 	apiKey := envOr("CENTRIFUGO_API_KEY", "particles-demo-api-key")
+	mode := envOr("MODE", "fanout")
+	hmacSecret := envOr("HMAC_SECRET", "particles-demo-hmac-secret")
+
+	if mode != "fanout" && mode != "shared_poll" {
+		log.Fatalf("MODE must be 'fanout' or 'shared_poll', got %q", mode)
+	}
 
 	cfg := SimConfig{
 		WorldWidth:         envInt("WORLD_WIDTH", 2200),
@@ -42,10 +57,9 @@ func main() {
 		ViewportY:          envInt("VIEWPORT_Y", 0),
 		ViewportW:          envInt("VIEWPORT_W", 2200),
 		ViewportH:          envInt("VIEWPORT_H", 2200),
-		// 1 = full resolution (~605 KB/frame). 3 ≈ 9× smaller (~67 KB).
-		Downsample:         envInt("DOWNSAMPLE", 3),
+		Downsample:         envInt("DOWNSAMPLE", 1),
 		FPS:                60,
-		PublishEveryNTicks: 1, // publish every sim tick — 60 fps
+		PublishEveryNTicks: envInt("PUBLISH_EVERY_N_TICKS", 2), // sim 60 Hz, publish 30 Hz
 	}
 
 	api := NewCentrifugoAPI(apiURL, apiKey)
@@ -57,70 +71,24 @@ func main() {
 	if err := api.WaitReady(ctx); err != nil {
 		log.Fatalf("Centrifugo not reachable: %v", err)
 	}
-	log.Printf("Centrifugo ready")
+	log.Printf("Centrifugo ready (mode=%s)", mode)
 
 	sim := NewSim(cfg)
-
-	// Publish off the sim's ticker goroutine — the HTTP round-trip can run
-	// 5–10ms which would otherwise push tick work past the 16ms budget at
-	// 60 Hz and force ticks to drop. Buffer of 2: the sim hands off and
-	// keeps simulating; if the publisher falls behind we drop the older
-	// pending frame rather than queue.
-	frames := make(chan []byte, 2)
-	go func() {
-		for bitmap := range frames {
-			if err := api.PublishBinary(ctx, channel, bitmap); err != nil && ctx.Err() == nil {
-				log.Printf("publish err: %v", err)
-			}
-		}
-	}()
-
-	go sim.Run(ctx, func(bitmap []byte) {
-		if ctx.Err() != nil {
-			return
-		}
-		select {
-		case frames <- bitmap:
-		default:
-			// Publisher is behind — drop the oldest pending frame and
-			// queue the freshest. Viewer prefers latest over complete.
-			select {
-			case <-frames:
-			default:
-			}
-			select {
-			case frames <- bitmap:
-			default:
-			}
-		}
-	})
-
 	mux := http.NewServeMux()
 	mux.HandleFunc("/centrifugo/rpc", rpcHandler(sim))
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("ok"))
-	})
-	mux.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
-		bw, bh := cfg.BitmapDims()
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]int{
-			"worldWidth":    cfg.WorldWidth,
-			"worldHeight":   cfg.WorldHeight,
-			"viewportX":     cfg.ViewportX,
-			"viewportY":     cfg.ViewportY,
-			"viewportW":     cfg.ViewportW,
-			"viewportH":     cfg.ViewportH,
-			"bitmapW":       bw,
-			"bitmapH":       bh,
-			"downsample":    cfg.Downsample,
-			"particleCount": cfg.ParticleCount,
-		})
-	})
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
+	mux.HandleFunc("/config", configHandler(cfg, mode))
+
+	switch mode {
+	case "fanout":
+		startFanoutMode(ctx, api, sim, cfg)
+	case "shared_poll":
+		startSharedPollMode(ctx, api, sim, cfg, hmacSecret, mux)
+	}
 
 	server := &http.Server{Addr: ":3001", Handler: mux}
 	go func() {
-		log.Printf("backend listening on :3001 (channel %q, viewport %dx%d at %d,%d)",
-			channel, cfg.ViewportW, cfg.ViewportH, cfg.ViewportX, cfg.ViewportY)
+		log.Printf("backend listening on :3001 (mode=%s)", mode)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal(err)
 		}
@@ -135,6 +103,194 @@ func main() {
 	shutCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutCancel()
 	_ = server.Shutdown(shutCtx)
+}
+
+// ---------- Fan-out mode: one shared bitmap, one channel ----------
+
+func startFanoutMode(ctx context.Context, api *CentrifugoAPI, sim *Sim, cfg SimConfig) {
+	frames := make(chan []byte, 2)
+	go func() {
+		for bitmap := range frames {
+			if err := api.PublishBinary(ctx, channelFanout, bitmap); err != nil && ctx.Err() == nil {
+				log.Printf("publish err: %v", err)
+			}
+		}
+	}()
+
+	go sim.Run(ctx, func(worldBuf []byte) {
+		if ctx.Err() != nil {
+			return
+		}
+		bitmap := packViewport(worldBuf, cfg)
+		select {
+		case frames <- bitmap:
+		default:
+			// Drop oldest, queue freshest.
+			select {
+			case <-frames:
+			default:
+			}
+			select {
+			case frames <- bitmap:
+			default:
+			}
+		}
+	})
+}
+
+// ---------- Shared-poll mode: 16×16 tile grid, batch publish ----------
+
+func startSharedPollMode(ctx context.Context, api *CentrifugoAPI, sim *Sim, cfg SimConfig, hmacSecret string, mux *http.ServeMux) {
+	// Single monotonic version counter shared by all tiles per tick.
+	// Seeded from the current Unix time in milliseconds so versions
+	// always advance across backend restarts. Without this seed, an
+	// in-process counter would reset to 0 on restart while Centrifugo
+	// still holds the higher version from before — clients tracking
+	// with cached high versions would never see fresh updates and
+	// the picture would freeze until they re-track.
+	var globalVersion uint64 = uint64(time.Now().UnixMilli())
+
+	mux.HandleFunc("/api/tiles", tilesHandler(sim, cfg))
+	mux.HandleFunc("/api/track_refresh", trackRefreshHandler(hmacSecret, channelSharedPoll))
+	mux.HandleFunc("/centrifugo/refresh", sharedPollRefreshHandler(sim, cfg))
+
+	frames := make(chan [][]byte, 2)
+	go func() {
+		for tilePayloads := range frames {
+			v := atomic.AddUint64(&globalVersion, 1)
+			items := make([]SharedPollItem, 0, len(tilePayloads))
+			for i, payload := range tilePayloads {
+				items = append(items, SharedPollItem{
+					Key:     TileKey(i%TilesPerSide, i/TilesPerSide),
+					Data:    payload,
+					Version: v,
+				})
+			}
+			if err := api.BatchSharedPollPublish(ctx, channelSharedPoll, items); err != nil && ctx.Err() == nil {
+				log.Printf("batch publish err: %v", err)
+			}
+		}
+	}()
+
+	go sim.Run(ctx, func(worldBuf []byte) {
+		if ctx.Err() != nil {
+			return
+		}
+		tiles := PackAllTiles(worldBuf, cfg.WorldWidth, cfg.WorldHeight)
+		select {
+		case frames <- tiles:
+		default:
+			select {
+			case <-frames:
+			default:
+			}
+			select {
+			case frames <- tiles:
+			default:
+			}
+		}
+	})
+}
+
+// /api/tiles?keys=t_0_0,t_0_1,... — returns initial tile data + signature
+// for the centrifuge-js getSignature callback.
+func tilesHandler(sim *Sim, cfg SimConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// We don't need actual initial state for the demo — tiles republish
+		// every tick anyway. Just return signature.
+		// (We could fetch worldBuf snapshot here, but it's racy without sim
+		// integration; cold-key auto-poll triggers a fresh publish quickly.)
+		_ = sim
+		_ = cfg
+		_ = r
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}
+}
+
+// /api/track_refresh — body { keys, channel } → { keys, signature }.
+// Called by the SDK's getSignature callback whenever the tracked-key set
+// changes.
+func trackRefreshHandler(secret, channel string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Keys    []string `json:"keys"`
+			Channel string   `json:"channel"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		ch := req.Channel
+		if ch == "" {
+			ch = channel
+		}
+		sig := MakeTrackSignature(secret, ch, req.Keys, "", 60)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"keys":      req.Keys,
+			"signature": sig,
+		})
+	}
+}
+
+// /centrifugo/refresh — Centrifugo's safety-net poll proxy. Returns
+// current tile payloads + versions for keys requested by Centrifugo.
+// Called on cold-key tracking and on the configured refresh interval.
+func sharedPollRefreshHandler(sim *Sim, cfg SimConfig) http.HandlerFunc {
+	type respItem struct {
+		Key     string `json:"key"`
+		B64Data string `json:"b64data"`
+		Version uint64 `json:"version"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Channel string `json:"channel"`
+			Items   []struct {
+				Key string `json:"key"`
+			} `json:"items"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		// We don't have direct sync access to worldBuf here without locking
+		// the sim. The fast path is shared_poll_publish from the sim
+		// callback; this refresh proxy is just a safety net. Return empty
+		// items — Centrifugo will deliver the next published tile shortly.
+		_ = sim
+		_ = cfg
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"result": map[string]any{"items": []respItem{}},
+		})
+	}
+}
+
+// ---------- Common HTTP handlers ----------
+
+func configHandler(cfg SimConfig, mode string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		bw, bh := cfg.BitmapDims()
+		out := map[string]any{
+			"mode":          mode,
+			"worldWidth":    cfg.WorldWidth,
+			"worldHeight":   cfg.WorldHeight,
+			"viewportX":     cfg.ViewportX,
+			"viewportY":     cfg.ViewportY,
+			"viewportW":     cfg.ViewportW,
+			"viewportH":     cfg.ViewportH,
+			"bitmapW":       bw,
+			"bitmapH":       bh,
+			"downsample":    cfg.Downsample,
+			"particleCount": cfg.ParticleCount,
+		}
+		if mode == "shared_poll" {
+			out["channel"] = channelSharedPoll
+			out["tilesPerSide"] = TilesPerSide
+			out["tileWorldSide"] = TileWorldSide
+			out["tilePackedWidth"] = TilePackedWidth
+			out["tilePackedRowBytes"] = TilePackedRowBytes
+		} else {
+			out["channel"] = channelFanout
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(out)
+	}
 }
 
 func rpcHandler(sim *Sim) http.HandlerFunc {
@@ -164,7 +320,6 @@ func rpcHandler(sim *Sim) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		raw, _ := io.ReadAll(r.Body)
-		log.Printf("rpc body: %s", string(raw))
 		var body rpcReqEnvelope
 		if err := json.Unmarshal(raw, &body); err != nil {
 			respErr(w, 100, "bad request: "+err.Error())
@@ -173,7 +328,7 @@ func rpcHandler(sim *Sim) http.HandlerFunc {
 		switch body.Method {
 		case "input":
 			var dataBytes []byte
-			if len(body.Data) > 0 {
+			if len(body.Data) > 0 && !strings.EqualFold(string(body.Data), "null") {
 				dataBytes = body.Data
 			} else if body.B64Data != "" {
 				decoded, err := base64.StdEncoding.DecodeString(body.B64Data)
@@ -186,7 +341,6 @@ func rpcHandler(sim *Sim) http.HandlerFunc {
 			var in inputBody
 			if len(dataBytes) > 0 {
 				if err := json.Unmarshal(dataBytes, &in); err != nil {
-					log.Printf("input parse err: %v (raw: %s)", err, string(dataBytes))
 					respErr(w, 100, "bad input data: "+err.Error())
 					return
 				}

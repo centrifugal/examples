@@ -1,38 +1,24 @@
 services:
-  centrifugo:
-    image: centrifugo/centrifugo:v6.7.1
-    command: centrifugo -c /centrifugo/centrifugo.json
-    volumes:
-      - ./centrifugo.json:/centrifugo/centrifugo.json:ro
-    ulimits:
-      nofile:
-        soft: 65535
-        hard: 65535
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/health"]
-      interval: 2s
-      timeout: 1s
-      retries: 10
-      start_period: 1s
-
   backend:
     build: ./backend
+    ports:
+      - "3001:3001"
     environment:
-      - CENTRIFUGO_API_URL=http://centrifugo:8000/api
+      - CENTRIFUGO_API_URL=http://host.docker.internal:8000/api
       - CENTRIFUGO_API_KEY=particles-demo-api-key
-      # Optional tuning. Defaults publish the entire world (2200x2200);
-      # each client renders the full bitmap and CSS clips it to the
-      # window so smaller windows just show less of the world.
+      - HMAC_SECRET=particles-demo-hmac-secret
+      # MODE selects the transport architecture:
+      #   fanout      — single shared-bitmap channel, every viewer gets all bytes (default)
+      #   shared_poll — 256-tile grid, viewers track only their viewport, full-res with pan
+      - MODE=${MODE:-fanout}
+      - PUBLISH_EVERY_N_TICKS=${PUBLISH_EVERY_N_TICKS:-2}
+      - DOWNSAMPLE=${DOWNSAMPLE:-1}
+      # Optional tuning.
       # - PARTICLE_COUNT=2000000
       # - WORLD_WIDTH=2200
       # - WORLD_HEIGHT=2200
-      # - VIEWPORT_X=0
-      # - VIEWPORT_Y=0
-      # - VIEWPORT_W=2200
-      # - VIEWPORT_H=2200
-    depends_on:
-      centrifugo:
-        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   nginx:
     image: nginx:latest
@@ -41,8 +27,7 @@ services:
     volumes:
       - ./static:/usr/share/nginx/html:ro
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      backend:
-        condition: service_started
-      centrifugo:
-        condition: service_healthy
+      - backend

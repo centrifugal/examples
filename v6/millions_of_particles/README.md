@@ -1,106 +1,120 @@
 # 2 million particles — multiplayer simulation over Centrifugo
 
 A Go backend simulates 2,000,000 particles in a 2200 × 2200 world at 60 Hz.
-Every other tick it packs the entire world into a 1-bpp bitmap
-(~67 KB at the default 3× downsample) and publishes the bytes to the
-`particles:frame` channel via Centrifugo's HTTP API. All connected
-browsers subscribe to the same channel using the **Protobuf transport**
-so the bitmap arrives as raw `Uint8Array`, then unpack and render it
-via `ImageData`.
+Two transport modes selectable via the `MODE` env var:
 
-Each output bitmap cell is the OR over a `DOWNSAMPLE × DOWNSAMPLE`
-block of world pixels — so the whole world fits in one publish at a
-fraction of the full-resolution byte cost, while still showing every
-cluster's shape. Set `DOWNSAMPLE=1` to publish at full world
-resolution (~605 KB/frame) for sharper individual particles.
+- **`fanout`** (default) — one shared bitmap of the world is published to
+  a single channel; every viewer receives the same bytes. Browser window
+  clips the centered canvas. No panning. Default `K=3` downsample puts
+  the per-frame payload at ~67 KB.
+- **`shared_poll`** — the world is split into a 16 × 16 tile grid; each
+  tile is one key on a shared-poll subscription. Each viewer tracks
+  only the tiles its viewport intersects (with a 1-tile prefetch
+  margin). Backend publishes all tiles each tick via Centrifugo's
+  `/api/batch` API as a single `shared_poll_publish`-per-tile burst.
+  Centrifugo fans out only the tiles each viewer tracks. Viewer pans
+  the world with right-mouse drag, arrow keys, or WASD. Always
+  full-resolution.
 
-The canvas is shown at native resolution and centered inside an
-`overflow: hidden` container — so smaller windows just show a smaller
-*area* of the same world, not a downscaled copy. Two tabs side-by-side
-at the same window size show the exact same crop, particles in
-lockstep.
-
-Each viewer can also influence the simulation: clicking and dragging
-sends an attractor position over Centrifugo RPC, which is proxied to
-the backend and applied to the next tick. All viewers see the same
-world and influence the same particles.
+Each viewer can also influence the simulation regardless of mode: left
+clicking and dragging sends an attractor position over Centrifugo RPC,
+proxied to the backend.
 
 The simulation logic is lifted with minor adaptations from
 [dgerrells/how-fast-is-it](https://github.com/dgerrells/how-fast-is-it)
 (see the [blog post](https://dgerrells.com/blog/how-fast-is-go-simulating-millions-of-particles-on-a-smart-tv)).
-The differences relative to the original:
-
-- One **shared** viewport, not per-client cameras — a single published
-  frame fans out to every subscriber via Centrifugo's pub/sub.
-- Inputs are keyed by Centrifugo client id and pruned on TTL.
-- The frame bytes are published via Centrifugo's HTTP API instead of a
-  raw WebSocket per client.
 
 ## Run
 
-```sh
-docker compose up --build
-```
-
-Then open <http://localhost:9000>. Open the same URL in two or more
-tabs to see the multiplayer effect — each tab attracts particles
-independently and all of them see the same shared simulation.
+1. Start a local Centrifugo (v6.8+, needed for `shared_poll`) on port 8000:
+   ```sh
+   centrifugo -c centrifugo.json
+   ```
+2. Start the demo (default `fanout` mode):
+   ```sh
+   docker compose up --build
+   ```
+   Or `shared_poll` mode (full-resolution tiles, pan):
+   ```sh
+   MODE=shared_poll docker compose up --build
+   ```
+3. Open <http://localhost:9000>. Open more tabs to see the multiplayer effect.
 
 `--build` is required after backend code changes.
 
 ## Prerequisites
 
-- Docker Compose
-- The viewer loads `centrifuge.protobuf.js` from unpkg (`centrifuge@^5`)
-  so binary publications arrive as `Uint8Array`. Centrifugo itself runs
-  in the compose stack as `centrifugo/centrifugo:v6.7.1`.
+- Centrifugo v6.8+ on port 8000 (binary, not the docker image — needs
+  `shared_poll` support).
+- Docker Compose for the backend + nginx.
+- centrifuge-js dev build on port 2000 — the viewer loads
+  `http://localhost:2000/centrifuge.protobuf.js` (the unpkg release
+  doesn't yet include `newSharedPollSubscription`).
 
 ## Tuning
 
-The backend reads the following env vars (defaults shown match the
-original demo):
+Backend env vars:
 
 ```
+MODE=fanout|shared_poll       # default fanout
 PARTICLE_COUNT=2000000
 WORLD_WIDTH=2200
 WORLD_HEIGHT=2200
-VIEWPORT_X=500
-VIEWPORT_Y=500
-VIEWPORT_W=1200
-VIEWPORT_H=1200
+DOWNSAMPLE=3                  # fanout-only; 1 = full resolution
+HMAC_SECRET=...               # shared_poll signing key
 ```
 
-Bandwidth: `(W/K) * (H/K) / 8` bytes per frame × 30 fps, where `K` is
-`DOWNSAMPLE`. With the default `K=3`, a 2200 × 2200 world publishes
-~67 KB/frame, ~2 MB/s per viewer. `K=1` (full resolution) is
-~605 KB/frame, ~18 MB/s per viewer. The published frame is the same
-for everyone, so publish-side bandwidth (backend → Centrifugo) stays
-constant regardless of viewer count — only Centrifugo → viewer fan-out
-scales with viewer count.
+## Bandwidth comparison (1410 × 730 viewport on a MacBook)
+
+| Mode | Per frame per viewer | Per-viewer rate at 60 Hz | Notes |
+|---|---|---|---|
+| Original (per-client crop) | ~129 KB | ~7.7 MB/s | exactly the viewport, panable |
+| `fanout`, K=1 (full-res) | 605 KB | 36 MB/s | shared bitmap, whole world |
+| `fanout`, K=3 (default) | 67 KB | 4 MB/s | shared bitmap, downsampled |
+| `shared_poll`, K=1 + 1-tile prefetch | ~260 KB | ~16 MB/s | full-res, only viewport tiles |
+
+Backend → Centrifugo bandwidth in `shared_poll` mode is constant
+~38 MB/s (256 tiles × ~2.5 KB × 60 Hz, regardless of viewer count) —
+that's what enables fan-out at scale on the viewer side.
 
 ## How the bytes flow
+
+### Fanout mode
 
 ```
             ┌──────────────────┐
             │  Go backend      │
-            │  ┌────────────┐  │
-            │  │ 2M particle │  │
-            │  │ sim @ 60Hz │  │
-            │  └────┬───────┘  │
-            │       │ pack 1bpp
-            │       ▼
-            │  POST /api/publish
-            └───────┬──────────┘
-                    │   ~30 Hz, ~180 KB
-                    ▼
-              Centrifugo
-                    │   protobuf-WS fan-out
-        ┌───────────┼───────────┐
-        ▼           ▼           ▼
-     viewer 1   viewer 2   viewer N
-        │           │           │
-        └───────────┼───────────┘
-                    │ RPC `input`  (centrifuge.rpc)
-                    ▼
-              Centrifugo  →  proxies to backend  →  sim.SetInput
+            │  2M sim @ 60 Hz  │
+            │  pack viewport   │
+            └────────┬─────────┘
+                     │  POST /api/publish (one bitmap)
+                     ▼
+                Centrifugo
+                     │  fan-out (same bytes to all)
+              ┌──────┼──────┐
+              ▼      ▼      ▼
+            viewer  viewer  viewer
+```
+
+### Shared-poll mode
+
+```
+            ┌──────────────────┐
+            │  Go backend      │
+            │  2M sim @ 60 Hz  │
+            │  pack 256 tiles  │
+            └────────┬─────────┘
+                     │  POST /api/batch (256 shared_poll_publish)
+                     ▼
+                Centrifugo
+                     │  per-key fan-out
+                     │  (each viewer gets only their tracked tiles)
+              ┌──────┼──────┐
+              ▼      ▼      ▼
+            viewer  viewer  viewer
+              │      │      │
+              │ track(visible tile keys) on pan
+              │ getSignature → /api/track_refresh (HMAC)
+              ▼      ▼      ▼
+                 (RPC `input` for attractor — same in both modes)
 ```
