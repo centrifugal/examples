@@ -47,9 +47,8 @@
         "subscription_type": "shared_poll",
         "shared_poll": {
           "refresh_interval": "10s",
-          "refresh_batch_size": 256,
+          "refresh_batch_size": 1024,
           "mode": "versioned",
-          "max_keys_per_connection": 256,
           "publish_enabled": true
         }
       }

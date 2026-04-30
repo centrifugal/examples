@@ -13,11 +13,11 @@ import (
 // only the tiles their viewport intersects; the backend publishes all
 // tiles every tick via Centrifugo's batch API.
 const (
-	TilesPerSide       = 16                                // 16 × 16 = 256 tiles per world
-	TileWorldSide      = 138                               // ceil(2200 / 16); last row/col tiles overhang slightly
-	TilePackedWidth    = 144                               // round up to multiple of 8 for clean per-row byte packing
-	TilePackedRowBytes = TilePackedWidth / 8               // 18
-	TilePackedSize     = TilePackedRowBytes * TileWorldSide // 18 × 138 = 2484 bytes per tile
+	TilesPerSide       = 32                                // 32 × 32 = 1024 tiles per world
+	TileWorldSide      = 69                                // ceil(2200 / 32); last row/col tiles overhang slightly
+	TilePackedWidth    = 72                                // round up to multiple of 8 for clean per-row byte packing
+	TilePackedRowBytes = TilePackedWidth / 8               // 9
+	TilePackedSize     = TilePackedRowBytes * TileWorldSide // 9 × 69 = 621 bytes per tile
 )
 
 // TileKey returns the shared-poll key for tile (tx, ty).

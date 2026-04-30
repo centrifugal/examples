@@ -110,7 +110,7 @@ func (c *CentrifugoAPI) BatchSharedPollPublish(ctx context.Context, channel stri
 			},
 		})
 	}
-	return c.call(ctx, "batch", map[string]any{"commands": commands})
+	return c.call(ctx, "batch", map[string]any{"commands": commands, "parallel": true})
 }
 
 // WaitReady polls /api/info until Centrifugo accepts requests, or ctx is done.

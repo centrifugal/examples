@@ -521,6 +521,7 @@ function runSharedPoll(cfg) {
             });
             return resp.json();
         },
+        delta: 'fossil'
     });
     // All tiles share a per-tick monotonic version (each tile's version
     // is bumped once per publish on the backend). Tracking the max

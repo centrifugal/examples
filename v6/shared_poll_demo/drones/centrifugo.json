@@ -29,7 +29,6 @@
           "refresh_interval": "5s",
           "refresh_batch_size": 500,
           "mode": "versioned",
-          "max_keys_per_connection": 500,
           "publish_enabled": true
         },
         "allow_subscribe_for_client": true
