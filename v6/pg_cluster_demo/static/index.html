@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centrifugo PG-only Cluster</title>
+    <style>
+        :root {
+            --bg-0: #0a0606;
+            --surface: rgba(20, 10, 10, 0.7);
+            --surface-deep: rgba(8, 4, 4, 0.6);
+            --border: rgba(255, 107, 87, 0.18);
+            --border-soft: rgba(255, 107, 87, 0.08);
+            --coral: #ff6b57;
+            --coral-soft: #ff8d7d;
+            --coral-dim: rgba(255, 107, 87, 0.18);
+            --text: #f5e6e3;
+            --text-mute: #b59791;
+            --text-faint: #7a5d59;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: radial-gradient(ellipse at top, #1a0808 0%, var(--bg-0) 60%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 16px;
+        }
+        .wrap { max-width: 1100px; margin: 0 auto; }
+
+        .top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .top-left h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .top-left .subtitle {
+            font-size: 12px;
+            color: var(--text-mute);
+            margin-top: 2px;
+        }
+        .top-right {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--coral-dim);
+            border: 1px solid rgba(255, 107, 87, 0.35);
+            border-radius: 999px;
+            font-size: 12px;
+            color: var(--coral-soft);
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #5a1a1a;
+        }
+        .dot.on { background: var(--coral); box-shadow: 0 0 8px rgba(255, 107, 87, 0.6); }
+
+        .node-switch { display: flex; gap: 6px; }
+        .node-switch a {
+            text-decoration: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            background: rgba(40, 20, 20, 0.7);
+            border: 1px solid rgba(255, 107, 87, 0.15);
+            color: var(--text-mute);
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .node-switch a.active {
+            background: var(--coral);
+            border-color: var(--coral);
+            color: #1a0606;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+        .card h2 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--coral-soft);
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .card .hint {
+            font-size: 11px;
+            color: var(--text-faint);
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        .card .hint code {
+            background: rgba(60, 25, 25, 0.6);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: var(--coral-soft);
+        }
+
+        /* Cluster topology */
+        .nodes { display: flex; flex-direction: column; gap: 8px; }
+        .node-row {
+            display: grid;
+            grid-template-columns: 1fr auto auto auto;
+            gap: 12px;
+            align-items: center;
+            padding: 10px 12px;
+            background: var(--surface-deep);
+            border-radius: 8px;
+            border: 1px solid var(--border-soft);
+            font-size: 13px;
+        }
+        .node-row.me {
+            border-color: rgba(255, 107, 87, 0.5);
+            background: rgba(255, 107, 87, 0.08);
+        }
+        .node-name { font-weight: 600; color: var(--text); }
+        .node-uid { color: var(--text-faint); font-size: 11px; font-family: ui-monospace, monospace; margin-top: 2px; }
+        .node-stat { font-size: 11px; color: var(--text-mute); text-align: right; }
+        .node-stat strong { color: var(--text); font-size: 14px; display: block; font-weight: 600; }
+
+        /* Chat */
+        #chat { display: flex; flex-direction: column; min-height: 380px; }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: var(--surface-deep);
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 280px;
+            max-height: 420px;
+        }
+        .msg {
+            padding: 8px 10px;
+            background: rgba(40, 18, 18, 0.7);
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.4;
+            border: 1px solid var(--border-soft);
+        }
+        .msg .meta {
+            font-size: 11px;
+            color: var(--text-mute);
+            margin-bottom: 2px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .msg .from-node { color: var(--coral-soft); font-weight: 500; }
+        .msg .you-tag {
+            background: var(--coral);
+            color: #1a0606;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .msg .body { color: var(--text); word-break: break-word; }
+
+        .compose { display: flex; gap: 8px; margin-top: 10px; }
+        .compose input {
+            flex: 1;
+            padding: 9px 12px;
+            background: rgba(15, 6, 6, 0.7);
+            border: 1px solid rgba(255, 107, 87, 0.2);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+        }
+        .compose input:focus { outline: none; border-color: var(--coral); box-shadow: 0 0 0 2px rgba(255, 107, 87, 0.15); }
+        .compose button {
+            padding: 9px 18px;
+            background: var(--coral);
+            border: none;
+            border-radius: 6px;
+            color: #1a0606;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .compose button:hover:not(:disabled) { background: var(--coral-soft); }
+        .compose button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Presence */
+        .presence-summary {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--coral);
+            margin-bottom: 10px;
+        }
+        .presence-summary span { color: var(--text-mute); font-size: 13px; font-weight: 400; margin-left: 6px; }
+        .clients {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        .client-row {
+            padding: 7px 10px;
+            background: var(--surface-deep);
+            border-radius: 6px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border-soft);
+            font-family: ui-monospace, monospace;
+        }
+        .client-row.me {
+            border-color: rgba(255, 107, 87, 0.5);
+            background: rgba(255, 107, 87, 0.08);
+        }
+        .client-id { color: var(--text); }
+        .client-node { color: var(--coral); font-family: -apple-system, sans-serif; font-size: 11px; font-weight: 600; }
+
+        .empty { color: var(--text-faint); font-size: 12px; padding: 20px; text-align: center; }
+
+        .footer-note {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: var(--surface-deep);
+            border-radius: 8px;
+            border: 1px dashed var(--border);
+            font-size: 12px;
+            color: var(--text-mute);
+            line-height: 1.6;
+        }
+        .footer-note code {
+            background: rgba(60, 25, 25, 0.6);
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: var(--coral-soft);
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="top">
+        <div class="top-left">
+            <h1>Centrifugo PG-only Cluster</h1>
+            <div class="subtitle">3-node cluster · stream broker · map broker · controller — all on PostgreSQL</div>
+        </div>
+        <div class="top-right">
+            <div class="node-switch" id="node-switch">
+                <a href="?n=1" data-n="1">node-1</a>
+                <a href="?n=2" data-n="2">node-2</a>
+                <a href="?n=3" data-n="3">node-3</a>
+            </div>
+            <div class="pill"><span class="dot" id="dot"></span><span id="status">connecting</span></div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Cluster topology · controller</h2>
+            <div class="hint">From <code>/api/info</code> on this node — peers are seen via PG-controller heartbeats.</div>
+            <div class="nodes" id="nodes"><div class="empty">loading…</div></div>
+        </div>
+
+        <div class="card">
+            <h2>Online here · map broker</h2>
+            <div class="hint">A <code>map_clients</code> subscription on <code>clients:chat:lobby</code>. Presence rows live in PostgreSQL — every node sees every tab.</div>
+            <div class="presence-summary" id="presence-summary">0<span>open tabs across the cluster</span></div>
+            <div class="clients" id="clients"><div class="empty">no one yet</div></div>
+        </div>
+    </div>
+
+    <div style="height: 16px;"></div>
+
+    <div class="card" id="chat">
+        <h2>Live chat · stream broker</h2>
+        <div class="hint">A stream subscription on <code>chat:lobby</code>. Publish on this node — subscribers on the other two receive it via the PG outbox + LISTEN/NOTIFY.</div>
+        <div class="messages" id="messages"><div class="empty">no messages yet</div></div>
+        <div class="compose">
+            <input id="input" placeholder="Type a message and press Enter…" autocomplete="off" disabled>
+            <button id="send" disabled>Send</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        Open this page in three tabs with <code>?n=1</code>, <code>?n=2</code>, <code>?n=3</code> — each tab connects to a different Centrifugo node.
+        Messages, presence, and node membership all flow through PostgreSQL only.
+    </div>
+
+</div>
+
+<script src="http://localhost:2000/centrifuge.js"></script>
+<script>
+    const CHAT_CHANNEL = 'chat:lobby';
+    const PRESENCE_CHANNEL = 'clients:chat:lobby';
+
+    const params = new URLSearchParams(location.search);
+    const nodeIdx = ['1', '2', '3'].includes(params.get('n')) ? params.get('n') : '1';
+    const myNodeName = 'node-' + nodeIdx;
+
+    document.querySelectorAll('#node-switch a').forEach(a => {
+        if (a.dataset.n === nodeIdx) a.classList.add('active');
+    });
+
+    const dotEl = document.getElementById('dot');
+    const statusEl = document.getElementById('status');
+    const nodesEl = document.getElementById('nodes');
+    const clientsEl = document.getElementById('clients');
+    const presenceSummaryEl = document.getElementById('presence-summary');
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+
+    // ---- Centrifuge connection — explicitly to the chosen node ----
+    const wsUrl = 'ws://' + location.host + '/connection/n' + nodeIdx + '/websocket';
+    const centrifuge = new Centrifuge(wsUrl, { name: 'cluster-demo' });
+
+    let myClientId = null;
+
+    centrifuge.on('connected', (ctx) => {
+        myClientId = ctx.client;
+        dotEl.classList.add('on');
+        statusEl.textContent = 'connected · ' + myNodeName;
+        inputEl.disabled = false;
+        sendBtn.disabled = false;
+    });
+    centrifuge.on('connecting', () => {
+        dotEl.classList.remove('on');
+        statusEl.textContent = 'connecting…';
+        inputEl.disabled = true;
+        sendBtn.disabled = true;
+    });
+    centrifuge.on('disconnected', () => {
+        dotEl.classList.remove('on');
+        statusEl.textContent = 'disconnected';
+        inputEl.disabled = true;
+        sendBtn.disabled = true;
+    });
+
+    // ---- Stream subscription — chat fan-out across nodes via PG broker ----
+    const chat = centrifuge.newSubscription(CHAT_CHANNEL);
+
+    function appendMessage(data) {
+        if (messagesEl.querySelector('.empty')) messagesEl.innerHTML = '';
+        const m = document.createElement('div');
+        m.className = 'msg';
+        const mine = data.client === myClientId;
+        m.innerHTML = `
+            <div class="meta">
+                <span>${escapeHtml(data.client ? data.client.slice(0, 8) : 'anon')}</span>
+                <span class="from-node">via ${escapeHtml(data.node || '?')}</span>
+                ${mine ? '<span class="you-tag">you</span>' : ''}
+            </div>
+            <div class="body">${escapeHtml(data.text || '')}</div>
+        `;
+        messagesEl.appendChild(m);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    chat.on('publication', ctx => appendMessage(ctx.data));
+    chat.subscribe();
+
+    sendBtn.addEventListener('click', sendMessage);
+    inputEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter') sendMessage();
+    });
+    function sendMessage() {
+        const text = inputEl.value.trim();
+        if (!text) return;
+        chat.publish({ client: myClientId, node: myNodeName, text, ts: Date.now() });
+        inputEl.value = '';
+    }
+
+    // ---- Map presence — cluster-wide online list via PG map broker ----
+    // The chat namespace is configured with map_clients_presence_channel_prefix:"clients:".
+    // Every subscriber to chat:lobby is auto-tracked at clients:chat:lobby with a
+    // client-presence row keyed by the client uid. State lives in PostgreSQL so
+    // every node — and every tab — sees the same list.
+    const presence = centrifuge.newMapClientsSubscription(PRESENCE_CHANNEL);
+
+    const liveClients = new Set();
+
+    function renderClients() {
+        presenceSummaryEl.innerHTML = liveClients.size + '<span>open tabs across the cluster</span>';
+        if (liveClients.size === 0) {
+            clientsEl.innerHTML = '<div class="empty">no one yet</div>';
+            return;
+        }
+        clientsEl.innerHTML = '';
+        const entries = Array.from(liveClients).sort();
+        for (const cid of entries) {
+            const row = document.createElement('div');
+            row.className = 'client-row' + (cid === myClientId ? ' me' : '');
+            row.innerHTML = `
+                <span class="client-id">${escapeHtml(cid.slice(0, 16))}…</span>
+                ${cid === myClientId ? '<span class="client-node">this tab</span>' : ''}
+            `;
+            clientsEl.appendChild(row);
+        }
+    }
+
+    presence.on('sync', ctx => {
+        liveClients.clear();
+        for (const e of ctx.entries) {
+            if (e.key) liveClients.add(e.key);
+        }
+        renderClients();
+    });
+    presence.on('update', ctx => {
+        if (!ctx.key) return;
+        if (ctx.removed) liveClients.delete(ctx.key);
+        else liveClients.add(ctx.key);
+        renderClients();
+    });
+    presence.subscribe();
+
+    centrifuge.connect();
+
+    // ---- Cluster topology — pulled from /api/info on a 2s loop ----
+    async function refreshNodes() {
+        try {
+            const r = await fetch('/api/info', { method: 'POST', body: '{}' });
+            const j = await r.json();
+            renderNodes((j.result && j.result.nodes) || []);
+        } catch (_) { /* ignore */ }
+    }
+    function renderNodes(nodes) {
+        if (!nodes.length) {
+            nodesEl.innerHTML = '<div class="empty">no nodes reporting yet</div>';
+            return;
+        }
+        nodesEl.innerHTML = '';
+        nodes.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        for (const n of nodes) {
+            const row = document.createElement('div');
+            row.className = 'node-row' + (n.name === myNodeName ? ' me' : '');
+            row.innerHTML = `
+                <div>
+                    <div class="node-name">${escapeHtml(n.name || '?')}</div>
+                    <div class="node-uid">${escapeHtml((n.uid || '').slice(0, 12))} · v${escapeHtml(n.version || '')}</div>
+                </div>
+                <div class="node-stat"><strong>${n.num_clients || 0}</strong>clients</div>
+                <div class="node-stat"><strong>${n.num_subs || 0}</strong>subs</div>
+                <div class="node-stat"><strong>${n.num_channels || 0}</strong>channels</div>
+            `;
+            nodesEl.appendChild(row);
+        }
+    }
+    refreshNodes();
+    setInterval(refreshNodes, 2000);
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+</script>
+</body>
+</html>

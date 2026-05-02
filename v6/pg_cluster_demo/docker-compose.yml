@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "9000:80"
+    volumes:
+      - ./static:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+# Until a release is tagged that ships the PG controller, run the 3 Centrifugo
+# nodes locally on the host via ./start-nodes.sh. Once the image is published,
+# uncomment the services below and switch the nginx upstream targets in
+# nginx/default.conf from host.docker.internal:800{0,1,2} to centrifugo-{1,2,3}:8000.
+#
+#  centrifugo-1: &centrifugo
+#    image: centrifugo/centrifugo:vX.Y.Z
+#    command: centrifugo -c /centrifugo/centrifugo.json
+#    volumes:
+#      - ./centrifugo.json:/centrifugo/centrifugo.json:ro
+#    environment:
+#      CENTRIFUGO_NODE_NAME: node-1
+#      CENTRIFUGO_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
+#      CENTRIFUGO_MAP_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
+#      CENTRIFUGO_CONTROLLER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
+#    depends_on:
+#      - postgres
+#  centrifugo-2:
+#    <<: *centrifugo
+#    environment:
+#      CENTRIFUGO_NODE_NAME: node-2
+#      CENTRIFUGO_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
+#      CENTRIFUGO_MAP_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
+#      CENTRIFUGO_CONTROLLER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
+#  centrifugo-3:
+#    <<: *centrifugo
+#    environment:
+#      CENTRIFUGO_NODE_NAME: node-3
+#      CENTRIFUGO_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
+#      CENTRIFUGO_MAP_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
+#      CENTRIFUGO_CONTROLLER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
