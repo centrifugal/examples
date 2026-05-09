@@ -44,10 +44,14 @@ is a lower bound, so any publications committed after the read arrive as
 
 ## Run
 
-1. Start Centrifugo on port 8000 (any recent v6 build that supports the
-   PG stream broker) using the provided `centrifugo.json`.
+1. Start Centrifugo v6.8.0 on port 8000 using the provided `centrifugo.json`.
 2. `docker compose up` in this directory.
 3. Open http://localhost:9001
+
+## Prerequisites
+
+- Centrifugo v6.8.0 on port 8000 (PG stream broker support).
+- Docker Compose.
 
 ## Why this layout
 

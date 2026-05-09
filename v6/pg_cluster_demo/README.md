@@ -9,7 +9,7 @@ All three pieces of the messaging plane share the same database:
 - **Controller** (`controller.type = postgres`) — heartbeats, surveys, subscribe/disconnect propagation.
 
 Companion to the blog post
-[*Multi-node Centrifugo on PostgreSQL alone*](../../../centrifugal.dev/blog/2026-05-02-pg-controller-multi-node.md).
+[*Multi-node Centrifugo on PostgreSQL alone*](../../../centrifugal.dev/blog/2026-05-16-pg-controller-multi-node.md).
 
 ## Layout
 
@@ -44,7 +44,7 @@ open http://localhost:9000/?n=3
 
 ## Prerequisites
 
-- Centrifugo built from a branch that includes the PG controller (`controller_postgres.go`).
+- Centrifugo v6.8.0 (introduced the PG controller, `controller_postgres.go`).
 - Docker Compose.
 - `centrifuge-js` dev build serving on `http://localhost:2000/centrifuge.js`
   (matches the convention used by the other v6 demos).

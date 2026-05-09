@@ -26,7 +26,7 @@ The simulation logic is lifted with minor adaptations from
 
 ## Run
 
-1. Start a local Centrifugo (v6.8+, needed for `shared_poll`) on port 8000:
+1. Start a local Centrifugo (v6.8.0, needed for `shared_poll`) on port 8000:
    ```sh
    centrifugo -c centrifugo.json
    ```
@@ -44,7 +44,7 @@ The simulation logic is lifted with minor adaptations from
 
 ## Prerequisites
 
-- Centrifugo v6.8+ on port 8000 (binary, not the docker image — needs
+- Centrifugo v6.8.0 on port 8000 (binary, not the docker image — needs
   `shared_poll` support).
 - Docker Compose for the backend + nginx.
 - centrifuge-js dev build on port 2000 — the viewer loads

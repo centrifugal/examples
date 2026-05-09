@@ -20,7 +20,7 @@ stable id pool.
 
 ## Prerequisites
 
-- Centrifugo v6.8+ on port 8000
+- Centrifugo v6.8.0 on port 8000
 - centrifuge-js dev build on port 2000
 - Docker Compose
 
