@@ -85,12 +85,15 @@ func PackAllTiles(worldBuf []byte, worldW, worldH int) [][]byte {
 // MakeTrackSignature signs a (channel, keys, user, expiry) tuple for the
 // centrifuge-js shared-poll `getSignature` callback. Keys are hashed in
 // the order they appear; the backend must return them in the same order.
-// Format matches Centrifugo's expected `<now>:<expiry>:<hex(hmac)>`.
+// Inner payload fields are NUL-separated to prevent colon-injection
+// ambiguity in (user_id, channel). Outer signature stays ':'-separated
+// because iat/exp/hmac_hex are colon-free by construction. The format
+// matches Centrifugo's expected `<now>:<expiry>:<hex(hmac)>`.
 func MakeTrackSignature(secret, channel string, keys []string, user string, ttlSec int) string {
 	now := time.Now().Unix()
 	expiry := now + int64(ttlSec)
 	keysHash := sha256.Sum256([]byte(strings.Join(keys, "\x00")))
-	payload := fmt.Sprintf("%d:%d:%s:%s:%x", now, expiry, user, channel, keysHash)
+	payload := fmt.Sprintf("%d\x00%d\x00%s\x00%s\x00%x", now, expiry, user, channel, keysHash)
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(payload))
 	return fmt.Sprintf("%d:%d:%x", now, expiry, mac.Sum(nil))

@@ -507,7 +507,7 @@
         sub.on('sync', (ctx) => {
             tasks.clear();
             for (const pub of ctx.entries) {
-                tasks.set(pub.key, { id: pub.key, score: pub.score, ...pub.data });
+                tasks.set(pub.key, { id: pub.key, ...pub.data });
             }
             renderBoard();
         });
@@ -516,7 +516,7 @@
             if (ctx.removed) {
                 tasks.delete(ctx.key);
             } else {
-                tasks.set(ctx.key, { id: ctx.key, score: ctx.score, ...ctx.data });
+                tasks.set(ctx.key, { id: ctx.key, ...ctx.data });
             }
             renderBoard();
         });
@@ -535,9 +535,9 @@
                 groups[status].push(task);
             }
 
-            // Sort each column by score (ascending — lower score = higher position).
+            // Sort each column by order key (ascending — lower order = higher position).
             for (const status of statuses) {
-                groups[status].sort((a, b) => a.score - b.score);
+                groups[status].sort((a, b) => (a.order || 0) - (b.order || 0));
             }
 
             for (const status of statuses) {
@@ -667,8 +667,8 @@
             return null; // drop at end
         }
 
-        // Compute a score for the drop position among siblings in the target column.
-        function computeDropScore(col, dropBeforeCard, draggedTaskId) {
+        // Compute a fractional order key for the drop position among siblings in the target column.
+        function computeDropOrder(col, dropBeforeCard, draggedTaskId) {
             const cards = [...col.querySelectorAll('.task-card:not(.dragging)')];
             const siblings = cards.map(c => tasks.get(c.dataset.taskId)).filter(t => t && t.id !== draggedTaskId);
 
@@ -683,19 +683,19 @@
                 if (idx >= 0) insertIdx = idx;
             }
 
-            const prevScore = insertIdx > 0 ? siblings[insertIdx - 1].score : null;
-            const nextScore = insertIdx < siblings.length ? siblings[insertIdx].score : null;
+            const prevOrder = insertIdx > 0 ? (siblings[insertIdx - 1].order || 0) : null;
+            const nextOrder = insertIdx < siblings.length ? (siblings[insertIdx].order || 0) : null;
 
-            if (prevScore === null && nextScore === null) {
+            if (prevOrder === null && nextOrder === null) {
                 return Date.now();
-            } else if (prevScore === null) {
-                return nextScore - 1000;
-            } else if (nextScore === null) {
-                return prevScore + 1000;
+            } else if (prevOrder === null) {
+                return nextOrder - 1000;
+            } else if (nextOrder === null) {
+                return prevOrder + 1000;
             } else {
                 // Midpoint. If adjacent, offset by 1 — rebalancing not needed for a demo.
-                const mid = Math.floor((prevScore + nextScore) / 2);
-                return mid === prevScore ? prevScore + 1 : mid;
+                const mid = Math.floor((prevOrder + nextOrder) / 2);
+                return mid === prevOrder ? prevOrder + 1 : mid;
             }
         }
 
@@ -724,16 +724,16 @@
                 if (!task) return;
 
                 const dropBeforeCard = getDropTarget(col, e.clientY);
-                const newScore = computeDropScore(col, dropBeforeCard, taskId);
+                const newOrder = computeDropOrder(col, dropBeforeCard, taskId);
 
                 const statusChanged = task.status !== newStatus;
-                const scoreChanged = task.score !== newScore;
+                const orderChanged = task.order !== newOrder;
 
-                if (!statusChanged && !scoreChanged) return;
+                if (!statusChanged && !orderChanged) return;
 
                 // Optimistically update.
                 task.status = newStatus;
-                task.score = newScore;
+                task.order = newOrder;
                 renderBoard();
 
                 // Send update to server.
@@ -784,7 +784,7 @@
                         author: task.author || '',
                         color: task.color || '',
                         created: task.created || 0,
-                        score: task.score || 0,
+                        order: task.order || 0,
                     })
                 });
                 if (!resp.ok) throw new Error(await resp.text());

@@ -435,7 +435,7 @@
             results.clear();
             for (const pub of ctx.entries) {
                 if (pub.key && pub.data) {
-                    results.set(pub.key, { data: pub.data, score: pub.score });
+                    results.set(pub.key, pub.data);
                 }
             }
             render();
@@ -446,7 +446,7 @@
             if (ctx.removed) {
                 results.delete(ctx.key);
             } else if (ctx.data) {
-                results.set(ctx.key, { data: ctx.data, score: ctx.score });
+                results.set(ctx.key, ctx.data);
             }
             scheduleRender();
         });
@@ -478,16 +478,16 @@
             const validOptions = new Set(meta.options.map(opt => opt.id));
             const totalVotes = [...results.entries()]
                 .filter(([key]) => validOptions.has(key))
-                .reduce((sum, [, r]) => sum + r.score, 0);
+                .reduce((sum, [, r]) => sum + (r.votes || 0), 0);
 
-            // Determine option order: metadata order during active, score-sorted during closed.
+            // Determine option order: metadata order during active, vote-sorted during closed.
             let optionOrder;
             if (isActive) {
                 optionOrder = meta.options.map(opt => opt.id);
             } else {
                 optionOrder = [...results.entries()]
                     .filter(([key]) => validOptions.has(key))
-                    .sort((a, b) => b[1].score - a[1].score)
+                    .sort((a, b) => (b[1].votes || 0) - (a[1].votes || 0))
                     .map(([key]) => key);
             }
 
@@ -577,14 +577,14 @@
                     const result = results.get(optId);
                     if (!result) continue;
 
-                    const votes = result.score;
+                    const votes = result.votes || 0;
                     const pct = totalVotes > 0 ? (votes / totalVotes * 100) : 0;
                     const isMyVote = optId === myOptionId;
                     const disabled = !isActive || hasVoted;
 
                     btn.querySelector('.option-bar').style.width = pct + '%';
                     btn.querySelector('.option-votes').textContent = `${votes} vote${votes !== 1 ? 's' : ''}`;
-                    btn.querySelector('.option-label').innerHTML = `${isMyVote ? '&#10003; ' : ''}${result.data.label}`;
+                    btn.querySelector('.option-label').innerHTML = `${isMyVote ? '&#10003; ' : ''}${result.label}`;
                     btn.disabled = disabled;
                     if (disabled) btn.classList.add('disabled');
                     if (isMyVote) btn.classList.add('voted');
@@ -610,8 +610,8 @@
             for (const optId of optionOrder) {
                 const result = results.get(optId);
                 if (!result) continue;
-                const opt = result.data;
-                const votes = result.score;
+                const opt = result;
+                const votes = result.votes || 0;
                 const pct = totalVotes > 0 ? (votes / totalVotes * 100) : 0;
                 const isMyVote = optId === myOptionId;
                 const disabled = !isActive || hasVoted;

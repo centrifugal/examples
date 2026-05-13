@@ -391,27 +391,27 @@ async def _record_poll_vote(option_id: str, user_id: str | None = None) -> dict:
                 if dedup["suppressed"]:
                     return {"success": False, "message": "already voted"}
 
-            # 2. Read current score with lock.
+            # 2. Read current option data with lock.
             row = await conn.fetchrow(
-                "SELECT score FROM cf_map_state WHERE channel = 'poll:results' AND key = $1 FOR UPDATE",
+                "SELECT data FROM cf_map_state WHERE channel = 'poll:results' AND key = $1 FOR UPDATE",
                 option_id,
             )
             if not row:
                 return {"success": False, "message": "option not found"}
 
-            new_score = (row["score"] or 0) + 1
+            current_data = row["data"] if isinstance(row["data"], dict) else json.loads(row["data"])
+            current_data["votes"] = (current_data.get("votes") or 0) + 1
 
-            # 3. Publish updated score.
+            # 3. Publish updated data — vote count lives in the data payload.
             await conn.fetchrow(
                 """
                 SELECT * FROM cf_map_publish(
                     p_channel := 'poll:results',
                     p_key := $1,
-                    p_data := (SELECT data FROM cf_map_state WHERE channel = 'poll:results' AND key = $1)::jsonb,
-                    p_score := $2
+                    p_data := $2::jsonb
                 )
                 """,
-                option_id, new_score,
+                option_id, json.dumps(current_data),
             )
 
     return {"success": True}
@@ -433,6 +433,9 @@ async def board_create(request: Request):
         "author": data.get("author", "Anonymous"),
         "color": data.get("color", "#888"),
         "created": now,
+        # Fractional ordering key (Trello-style midpoint inserts). New tasks
+        # land at the end of their column initially — clients reorder by drag.
+        "order": now,
     }
     await pg_map_publish("board:main", task_id, task_data)
     return JSONResponse({"taskId": task_id})
@@ -450,6 +453,7 @@ async def board_update(request: Request):
         "author": data.get("author", ""),
         "color": data.get("color", "#888"),
         "created": data.get("created", 0),
+        "order": data.get("order", 0),
     }
     await pg_map_publish("board:main", task_id, task_data)
     return JSONResponse({"success": True})
@@ -840,11 +844,12 @@ async def poll_manager_task():
             }
             await pg_map_publish("poll:meta", poll_id, meta)
 
-            # Publish initial option entries.
+            # Publish initial option entries. Vote count starts at 0 inside data —
+            # _record_poll_vote increments it inside a transactional read-modify-write.
             for opt in options:
                 await pg_map_publish(
                     "poll:results", opt["id"],
-                    {"optionId": opt["id"], "label": opt["label"], "color": opt["color"]},
+                    {"optionId": opt["id"], "label": opt["label"], "color": opt["color"], "votes": 0},
                 )
 
             logger.info("Poll started: %s — %s", poll_id, poll["question"])
