@@ -1,0 +1,40 @@
+{
+  "admin": {
+    "enabled": true,
+    "insecure": true
+  },
+
+  "client": {
+    "allowed_origins": ["*"],
+    "allow_anonymous_connect_without_token": true,
+    "insecure": true
+  },
+
+  "http_api": {
+    "key": "pg-stream-demo-api-key",
+    "external": true
+  },
+
+  "broker": {
+    "enabled": true,
+    "type": "postgres",
+    "postgres": {
+      "dsn": "postgres://test:test@postgres:5432/test?sslmode=disable",
+      "use_notify": true
+    }
+  },
+
+  "channel": {
+    "namespaces": [
+      {
+        "name": "orders",
+        "subscription_type": "stream",
+        "history_size": 1000,
+        "history_ttl": "24h",
+        "force_recovery": true,
+        "allowed_delta_types": ["fossil"],
+        "allow_subscribe_for_client": true
+      }
+    ]
+  }
+}

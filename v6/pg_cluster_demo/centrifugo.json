@@ -1,0 +1,67 @@
+{
+  "admin": {
+    "enabled": true,
+    "insecure": true
+  },
+
+  "client": {
+    "allowed_origins": ["*"],
+    "allow_anonymous_connect_without_token": true,
+    "insecure": true
+  },
+
+  "http_api": {
+    "key": "pg-cluster-demo-api-key",
+    "external": true
+  },
+
+  "broker": {
+    "enabled": true,
+    "type": "postgres",
+    "postgres": {
+      "dsn": "postgres://test:test@postgres:5432/test?sslmode=disable",
+      "use_notify": true
+    }
+  },
+
+  "map_broker": {
+    "type": "postgres",
+    "postgres": {
+      "dsn": "postgres://test:test@postgres:5432/test?sslmode=disable",
+      "use_notify": true
+    }
+  },
+
+  "controller": {
+    "enabled": true,
+    "type": "postgres",
+    "postgres": {
+      "dsn": "postgres://test:test@postgres:5432/test?sslmode=disable",
+      "use_notify": true
+    }
+  },
+
+  "channel": {
+    "namespaces": [
+      {
+        "name": "chat",
+        "subscription_type": "stream",
+        "history_size": 100,
+        "history_ttl": "1h",
+        "force_recovery": true,
+        "map_clients_presence_channel_prefix": "clients:",
+        "allow_subscribe_for_anonymous": true,
+        "allow_publish_for_anonymous": true
+      },
+      {
+        "name": "clients",
+        "subscription_type": "map_clients",
+        "map": {
+          "mode": "recoverable",
+          "key_ttl": "60s"
+        },
+        "allow_subscribe_for_anonymous": true
+      }
+    ]
+  }
+}

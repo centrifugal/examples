@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Poll Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f0f13;
+            color: #e4e4e7;
+            min-height: 100vh;
+        }
+        header {
+            background: linear-gradient(135deg, #18181b 0%, #1e1b2e 100%);
+            border-bottom: 1px solid #27272a;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a78bfa, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        header .subtitle {
+            font-size: 12px;
+            color: #71717a;
+            margin-top: 2px;
+        }
+        .badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 100px;
+            letter-spacing: 0.03em;
+        }
+        .badge.connected { background: #064e3b; color: #6ee7b7; }
+        .badge.connecting { background: #713f12; color: #fcd34d; }
+        .badge.disconnected { background: #7f1d1d; color: #fca5a5; }
+
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
+        }
+        .post {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 6px 14px;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 10px;
+            margin-bottom: 3px;
+            transition: border-color 0.5s, background 0.5s, box-shadow 0.5s;
+        }
+        .post.flash {
+            border-color: #7c3aed;
+            background: #1a1625;
+            box-shadow: 0 0 12px rgba(139, 92, 246, 0.15), inset 0 0 12px rgba(139, 92, 246, 0.05);
+        }
+
+        .vote-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+            background: none;
+            border: 1px solid transparent;
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 6px;
+            flex-shrink: 0;
+            min-width: 42px;
+        }
+        .vote-btn:hover {
+            border-color: #3f3f46;
+            background: #27272a;
+        }
+        .vote-btn:active { background: #3f3f46; }
+        .vote-btn .arrow {
+            font-size: 14px;
+            line-height: 1;
+            color: #52525b;
+        }
+        .vote-btn:hover .arrow { color: #a78bfa; }
+        .vote-btn .count {
+            font-size: 14px;
+            font-weight: 700;
+            color: #a1a1aa;
+            font-variant-numeric: tabular-nums;
+        }
+        .post.flash .count { color: #c4b5fd; }
+
+        .post-title {
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.5;
+            color: #d4d4d8;
+        }
+
+        .load-more {
+            text-align: center;
+            padding: 16px;
+        }
+        .load-more button {
+            background: #18181b;
+            color: #a1a1aa;
+            border: 1px solid #27272a;
+            padding: 10px 32px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .load-more button:hover {
+            background: #27272a;
+            color: #e4e4e7;
+            border-color: #3f3f46;
+        }
+
+        .delta-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            max-width: 640px;
+            margin: 12px auto 0;
+            padding: 8px 16px;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 10px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            color: #71717a;
+            font-variant-numeric: tabular-nums;
+        }
+        .delta-bar .d-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .delta-bar .d-val { color: #a1a1aa; }
+        .delta-bar .d-highlight { color: #6ee7b7; font-weight: 600; }
+        .delta-bar .d-group { display: flex; align-items: center; gap: 6px; }
+        .delta-bar .d-sep { color: rgba(255,255,255,0.12); }
+        .delta-ratio-bar {
+            width: 80px; height: 6px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 3px; overflow: hidden;
+        }
+        .delta-ratio-fill {
+            height: 100%; background: #6ee7b7;
+            border-radius: 3px; transition: width 0.5s ease;
+        }
+
+        .toggle-switch {
+            position: relative; width: 36px; height: 20px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-switch .slider {
+            position: absolute; cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #3f3f46; border-radius: 20px;
+            transition: background 0.2s;
+        }
+        .toggle-switch .slider::before {
+            content: ''; position: absolute;
+            height: 14px; width: 14px; left: 3px; bottom: 3px;
+            background: #a1a1aa; border-radius: 50%;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .toggle-switch input:checked + .slider { background: #4c1d95; }
+        .toggle-switch input:checked + .slider::before { transform: translateX(16px); background: #c4b5fd; }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Shared Poll</h1>
+            <div class="subtitle">Real-time votes via Centrifugo shared polling</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+            <label style="font-size:12px;color:#a1a1aa;display:flex;align-items:center;gap:6px;cursor:pointer">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="deltaToggle">
+                    <span class="slider"></span>
+                </label>
+                <span>Delta</span>
+            </label>
+            <span id="connStatus" class="badge disconnected">disconnected</span>
+        </div>
+    </header>
+
+    <div class="delta-bar" id="deltaBar" style="display:none">
+        <span class="d-label">Delta</span>
+        <span class="d-sep">|</span>
+        <span class="d-group"><span class="d-val" id="dPubs">0</span> msgs</span>
+        <span class="d-group"><span class="d-val" id="dFull">0</span> full</span>
+        <span class="d-group"><span class="d-val" id="dDelta">0</span> delta</span>
+        <span class="d-sep">|</span>
+        <span class="d-group">wire <span class="d-val" id="dWire">0 B</span></span>
+        <span class="d-group">decoded <span class="d-val" id="dDecoded">0 B</span></span>
+        <span class="d-group">saved <span class="d-highlight" id="dSaved">0 B</span></span>
+        <span class="d-sep">|</span>
+        <span class="d-group">
+            <div class="delta-ratio-bar"><div class="delta-ratio-fill" id="dRatioFill" style="width:0%"></div></div>
+            <span class="d-highlight" id="dRatio">0%</span>
+        </span>
+    </div>
+
+    <div class="container">
+        <div id="posts"></div>
+        <div class="load-more">
+            <button id="loadMoreBtn" onclick="loadMore()" style="display:none">Load more</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/centrifuge@5.6.0/dist/centrifuge.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const useDelta = params.get('delta') === '1';
+
+        const deltaToggle = document.getElementById('deltaToggle');
+        deltaToggle.checked = useDelta;
+        deltaToggle.addEventListener('change', () => {
+            const url = new URL(window.location);
+            if (deltaToggle.checked) {
+                url.searchParams.set('delta', '1');
+            } else {
+                url.searchParams.delete('delta');
+            }
+            window.location = url;
+        });
+
+        if (useDelta) {
+            document.getElementById('deltaBar').style.display = '';
+        }
+
+        let currentPage = 0;
+        let totalPages = 1;
+        const postsEl = document.getElementById('posts');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        const connStatus = document.getElementById('connStatus');
+
+        const client = new Centrifuge('ws://' + window.location.host + '/connection/websocket');
+
+        client.on('connecting', () => {
+            connStatus.textContent = 'connecting';
+            connStatus.className = 'badge connecting';
+        });
+        client.on('connected', (ctx) => {
+            connStatus.textContent = 'connected';
+            connStatus.className = 'badge connected';
+        });
+        client.on('disconnected', () => {
+            connStatus.textContent = 'disconnected';
+            connStatus.className = 'badge disconnected';
+        });
+
+        const subOpts = {
+            getSignature: async (ctx) => {
+                const resp = await fetch('/api/track_refresh', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ keys: ctx.keys, channel: 'post_votes:main' }),
+                });
+                return await resp.json();
+            },
+        };
+        if (useDelta) subOpts.delta = 'fossil';
+
+        const votes = client.newSharedPollSubscription('post_votes:main', subOpts);
+
+        const knownVotes = {};
+
+        votes.on('update', (ctx) => {
+            const el = document.querySelector(`[data-post="${ctx.key}"]`);
+            if (!el) return;
+            if (ctx.removed) { el.remove(); return; }
+            if (ctx.data) {
+                const serverVotes = ctx.data.votes;
+                const local = knownVotes[ctx.key] || 0;
+                if (serverVotes > local) {
+                    knownVotes[ctx.key] = serverVotes;
+                    updateCount(el, serverVotes);
+                } else if (serverVotes === local) {
+                    knownVotes[ctx.key] = serverVotes;
+                }
+            }
+        });
+
+        const flashTimers = {};
+        function updateCount(el, count) {
+            const id = el.getAttribute('data-post');
+            el.querySelector('.count').textContent = count;
+            if (flashTimers[id]) clearTimeout(flashTimers[id]);
+            el.classList.add('flash');
+            flashTimers[id] = setTimeout(() => el.classList.remove('flash'), 600);
+        }
+
+        votes.subscribe();
+        client.connect();
+
+        async function loadMore() {
+            if (currentPage >= totalPages) return;
+            currentPage++;
+            const resp = await fetch(`/api/posts?page=${currentPage}`);
+            const data = await resp.json();
+            totalPages = data.total_pages;
+
+            for (const post of data.posts) {
+                knownVotes[post.id] = post.votes;
+                const el = document.createElement('div');
+                el.className = 'post';
+                el.setAttribute('data-post', post.id);
+                el.innerHTML =
+                    `<button class="vote-btn" onclick="vote('${post.id}')">` +
+                        `<span class="arrow">&#9650;</span>` +
+                        `<span class="count">${post.votes}</span>` +
+                    `</button>` +
+                    `<span class="post-title">${post.title}</span>`;
+                postsEl.appendChild(el);
+            }
+
+            loadMoreBtn.style.display = currentPage < totalPages ? '' : 'none';
+
+            const items = data.posts.map(p => ({ key: p.id, version: p.version }));
+            votes.track(items, data.signature);
+        }
+
+        async function vote(id) {
+            const el = document.querySelector(`[data-post="${id}"]`);
+            if (el) {
+                knownVotes[id] = (knownVotes[id] || 0) + 1;
+                updateCount(el, knownVotes[id]);
+            }
+            await fetch(`/api/posts/${id}/vote`, { method: 'POST' });
+        }
+
+        function formatBytes(b) {
+            if (b < 1024) return b + ' B';
+            if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+            return (b / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        if (useDelta) {
+            setInterval(() => {
+                const s = votes.deltaStats();
+                document.getElementById('dPubs').textContent = s.numPublications;
+                document.getElementById('dFull').textContent = s.numFullPayloads;
+                document.getElementById('dDelta').textContent = s.numDeltaPayloads;
+                document.getElementById('dWire').textContent = formatBytes(s.bytesReceived);
+                document.getElementById('dDecoded').textContent = formatBytes(s.bytesDecoded);
+                document.getElementById('dSaved').textContent = formatBytes(s.bytesDecoded - s.bytesReceived);
+                const pct = (s.compressionRatio * 100).toFixed(1);
+                document.getElementById('dRatio').textContent = pct + '%';
+                document.getElementById('dRatioFill').style.width = pct + '%';
+            }, 500);
+        }
+
+        loadMore();
+    </script>
+</body>
+</html>

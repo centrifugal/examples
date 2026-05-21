@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Tracking — Shared Poll Demo</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #0f0f13; overflow: hidden; }
+
+        #map { width: 100vw; height: 100vh; }
+        .leaflet-container { background: #0f0f13; }
+
+        .drone-icon.smooth { transition: transform 0.95s linear !important; }
+        .drone-dot { border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.8); }
+        }
+
+        .drone-label {
+            position: absolute; bottom: 14px; left: 50%;
+            transform: translateX(-50%); white-space: nowrap;
+            background: rgba(15,15,19,0.92); border: 1px solid #3f3f46;
+            color: #e4e4e7; font-family: 'Inter', sans-serif; font-size: 11px;
+            font-weight: 500; padding: 2px 6px; border-radius: 5px;
+            pointer-events: none;
+        }
+
+        /* Search circle — CSS overlay, always perfectly centered on screen. */
+        #search-circle {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 1.5px solid rgba(124, 58, 237, 0.45);
+            background: radial-gradient(circle,
+                rgba(124, 58, 237, 0.02) 0%,
+                rgba(124, 58, 237, 0.06) 100%);
+            pointer-events: none; z-index: 450;
+            box-shadow: 0 0 30px rgba(124, 58, 237, 0.12),
+                        inset 0 0 30px rgba(124, 58, 237, 0.04);
+        }
+
+        #panel {
+            position: fixed; top: 12px; left: 12px; z-index: 1000;
+            background: rgba(15,15,19,0.92); backdrop-filter: blur(10px);
+            border: 1px solid #27272a; border-radius: 12px;
+            padding: 14px 18px; min-width: 230px;
+        }
+        #panel h1 {
+            font-size: 15px; font-weight: 700;
+            background: linear-gradient(135deg, #a78bfa, #818cf8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        #panel .subtitle { font-size: 11px; color: #52525b; margin-top: 2px; }
+        #panel .stats {
+            margin-top: 12px; display: flex; flex-direction: column; gap: 6px;
+            font-size: 12px; color: #71717a;
+        }
+        #panel .stat-row { display: flex; justify-content: space-between; }
+        #panel .stat-val { color: #e4e4e7; font-weight: 600; font-variant-numeric: tabular-nums; }
+        #panel .stat-highlight { color: #a78bfa; font-weight: 700; }
+        #panel .divider { border-top: 1px solid #27272a; margin: 6px 0; }
+
+        .badge {
+            display: inline-block; font-size: 10px; font-weight: 600;
+            padding: 2px 8px; border-radius: 100px; letter-spacing: 0.04em;
+            margin-top: 10px;
+        }
+        .badge.connected    { background: #064e3b; color: #6ee7b7; }
+        .badge.connecting   { background: #713f12; color: #fcd34d; }
+        .badge.disconnected { background: #7f1d1d; color: #fca5a5; }
+
+        #hint {
+            position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: rgba(15,15,19,0.85); backdrop-filter: blur(8px);
+            border: 1px solid #27272a; border-radius: 8px;
+            padding: 8px 16px; font-size: 12px; color: #71717a;
+            transition: opacity 1s;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="search-circle"></div>
+
+    <div id="panel">
+        <h1>Drone Tracking</h1>
+        <div class="subtitle">Pan to move the search area</div>
+        <div class="stats">
+            <div class="divider"></div>
+            <div class="stat-row">
+                <span>Search radius</span>
+                <span class="stat-val">2 km</span>
+            </div>
+            <div class="stat-row">
+                <span>Cells tracked</span>
+                <span><span class="stat-highlight" id="sCells">0</span> <span style="color:#52525b">/ ~768</span></span>
+            </div>
+            <div class="stat-row">
+                <span>Drones in range</span>
+                <span class="stat-val" id="sDrones">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Total drones</span>
+                <span style="color:#52525b">500</span>
+            </div>
+            <div class="stat-row">
+                <span>Updates received</span>
+                <span class="stat-val" id="sUpdates">0</span>
+            </div>
+        </div>
+        <span id="connStatus" class="badge disconnected">disconnected</span>
+    </div>
+
+    <div id="hint">Drag the map to move the search area</div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/centrifuge@5.6.0/dist/centrifuge.js"></script>
+    <script>
+    const CELL_SIZE = 0.005;
+    const CHANNEL = 'drones:sf';
+    const RADIUS_M = 2000;
+    const RADIUS_DEG = RADIUS_M / 111320;
+    const LNG_SCALE = Math.cos(37.78 * Math.PI / 180);
+
+    // ── Map: fixed zoom, pan only ──
+    const map = L.map('map', {
+        center: [37.775, -122.425],
+        zoom: 14,
+        minZoom: 14,
+        maxZoom: 14,
+        zoomControl: false,
+        maxBounds: [[37.710, -122.520], [37.820, -122.350]],
+        maxBoundsViscosity: 1.0,
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        maxZoom: 19,
+    }).addTo(map);
+
+    // ── Drone pane with clip-path (clips markers + labels to the circle) ──
+    map.createPane('dronePane');
+    const dronePane = map.getPane('dronePane');
+    dronePane.style.zIndex = 500;
+
+    let circlePixelRadius;
+    (function initCircle() {
+        const c = map.getCenter();
+        const cPx = map.latLngToContainerPoint(c);
+        const edgeLng = c.lng + RADIUS_M / (111320 * LNG_SCALE);
+        const ePx = map.latLngToContainerPoint([c.lat, edgeLng]);
+        circlePixelRadius = Math.abs(ePx.x - cPx.x);
+        // Size CSS visual circle.
+        const el = document.getElementById('search-circle');
+        el.style.width = el.style.height = (circlePixelRadius * 2) + 'px';
+    })();
+
+    function updateDroneClip() {
+        const size = map.getSize();
+        const center = L.point(size.x / 2, size.y / 2);
+        const lp = map.containerPointToLayerPoint(center);
+        dronePane.style.clipPath = `circle(${circlePixelRadius}px at ${lp.x}px ${lp.y}px)`;
+    }
+    map.on('move', updateDroneClip);
+    updateDroneClip();
+
+    // Hide hint after first pan.
+    map.once('movestart', () => {
+        const el = document.getElementById('hint');
+        if (el) { el.style.opacity = '0'; setTimeout(() => el.remove(), 1000); }
+    });
+
+    // ── State ──
+    const trackedCells = new Set();
+    const cellRects = {};
+    const cellDroneData = {};       // cellKey → [{id, name, lat, lng}, ...]
+    const droneMarkers = {};        // droneID → { marker, cellKey, name }
+    let updatePending = null;
+    let updateCount = 0;
+
+    function cellKeyFromIndices(iLat, iLng) {
+        return (iLat * CELL_SIZE).toFixed(3) + ':' + (iLng * CELL_SIZE).toFixed(3);
+    }
+
+    function cellBounds(key) {
+        const [lat, lng] = key.split(':').map(Number);
+        return [[lat, lng], [lat + CELL_SIZE, lng + CELL_SIZE]];
+    }
+
+    // ── Circle → cell mapping (AABB–circle intersection) ──
+    function cellsInCircle() {
+        const c = map.getCenter();
+        const rLng = RADIUS_DEG / LNG_SCALE;
+        const out = new Set();
+        const iMin = Math.floor((c.lat - RADIUS_DEG - CELL_SIZE) / CELL_SIZE);
+        const iMax = Math.ceil ((c.lat + RADIUS_DEG + CELL_SIZE) / CELL_SIZE);
+        const jMin = Math.floor((c.lng - rLng - CELL_SIZE) / CELL_SIZE);
+        const jMax = Math.ceil ((c.lng + rLng + CELL_SIZE) / CELL_SIZE);
+        for (let i = iMin; i < iMax; i++) {
+            for (let j = jMin; j < jMax; j++) {
+                const cLat = i * CELL_SIZE;
+                const cLng = j * CELL_SIZE;
+                const nLat = Math.max(cLat, Math.min(cLat + CELL_SIZE, c.lat));
+                const nLng = Math.max(cLng, Math.min(cLng + CELL_SIZE, c.lng));
+                const dLat = nLat - c.lat;
+                const dLng = (nLng - c.lng) * LNG_SCALE;
+                if (dLat * dLat + dLng * dLng <= RADIUS_DEG * RADIUS_DEG) {
+                    out.add(cellKeyFromIndices(i, j));
+                }
+            }
+        }
+        return out;
+    }
+
+    function isInCircle(lat, lng) {
+        const c = map.getCenter();
+        const dLat = lat - c.lat;
+        const dLng = (lng - c.lng) * LNG_SCALE;
+        return dLat * dLat + dLng * dLng <= RADIUS_DEG * RADIUS_DEG;
+    }
+
+    // ── Centrifuge ──
+    const client = new Centrifuge('ws://' + window.location.host + '/connection/websocket');
+    const connEl = document.getElementById('connStatus');
+
+    client.on('connecting',   () => { connEl.textContent = 'connecting';   connEl.className = 'badge connecting'; });
+    client.on('connected',    () => { connEl.textContent = 'connected';    connEl.className = 'badge connected'; });
+    client.on('disconnected', () => { connEl.textContent = 'disconnected'; connEl.className = 'badge disconnected'; });
+
+    const sub = client.newSharedPollSubscription(CHANNEL, {
+        getSignature: async (ctx) => {
+            const resp = await fetch('/api/track_refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keys: ctx.keys, channel: CHANNEL }),
+            });
+            return resp.json();
+        },
+    });
+
+    sub.on('update', (ctx) => {
+        updateCount++;
+        if (ctx.removed) {
+            delete cellDroneData[ctx.key];
+            removeDronesInCell(ctx.key);
+            return;
+        }
+        if (ctx.data && ctx.data.drones) {
+            cellDroneData[ctx.key] = ctx.data.drones;
+            renderCell(ctx.key);
+            refreshStats();
+        }
+    });
+
+    // ── Drone markers — clip-path handles circle clipping, no per-marker filtering ──
+    function droneHue(id) {
+        let h = 0;
+        for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
+        return ((h % 360) + 360) % 360;
+    }
+
+    function makeDroneIcon(hue, name) {
+        const delay = (Math.random() * 2).toFixed(2);
+        return L.divIcon({
+            className: 'drone-icon',
+            html: `<div class="drone-dot" style="
+                width:10px; height:10px;
+                background: hsl(${hue}, 80%, 65%);
+                box-shadow: 0 0 6px hsl(${hue}, 80%, 55%);
+                animation-delay: ${delay}s;
+            "></div><div class="drone-label">${name}</div>`,
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
+        });
+    }
+
+    // Delayed removal prevents jumps when drones cross cell boundaries.
+    // Both the old and new cell update within ~100ms; the 200ms grace
+    // period lets the new cell's update claim the marker before removal.
+    const removalTimers = {};
+
+    function renderCell(cellKey) {
+        const data = cellDroneData[cellKey] || [];
+        const current = new Set(data.map(d => d.id));
+
+        for (const d of data) {
+            if (removalTimers[d.id]) {
+                clearTimeout(removalTimers[d.id]);
+                delete removalTimers[d.id];
+            }
+            const inside = isInCircle(d.lat, d.lng);
+            const entry = droneMarkers[d.id];
+            if (entry) {
+                entry.marker.setLatLng([d.lat, d.lng]);
+                entry.cellKey = cellKey;
+                // Hide drones outside the circle entirely — clip-path alone
+                // leaves them partially visible at the edge, looking "stuck".
+                if (entry.marker._icon) {
+                    entry.marker._icon.style.display = inside ? '' : 'none';
+                }
+            } else {
+                const name = d.name || d.id;
+                const m = L.marker([d.lat, d.lng], {
+                    icon: makeDroneIcon(droneHue(d.id), name),
+                    interactive: false,
+                    pane: 'dronePane',
+                });
+                m.addTo(map);
+                // Hide immediately if outside circle.
+                if (!inside && m._icon) {
+                    m._icon.style.display = 'none';
+                }
+                // Enable transition after browser paints initial position.
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    m._icon?.classList.add('smooth');
+                }));
+                droneMarkers[d.id] = { marker: m, cellKey: cellKey };
+            }
+        }
+
+        for (const [id, entry] of Object.entries(droneMarkers)) {
+            if (entry.cellKey === cellKey && !current.has(id) && !removalTimers[id]) {
+                removalTimers[id] = setTimeout(() => {
+                    if (droneMarkers[id]?.cellKey === cellKey) {
+                        droneMarkers[id].marker.remove();
+                        delete droneMarkers[id];
+                    }
+                    delete removalTimers[id];
+                }, 200);
+            }
+        }
+    }
+
+    function removeDronesInCell(key) {
+        for (const [id, entry] of Object.entries(droneMarkers)) {
+            if (entry.cellKey === key) {
+                entry.marker.remove();
+                delete droneMarkers[id];
+            }
+        }
+        refreshStats();
+    }
+
+    function refreshStats() {
+        document.getElementById('sCells').textContent = trackedCells.size;
+        // Count drones actually inside the circle (not just in tracked cells).
+        let inRange = 0;
+        for (const entry of Object.values(droneMarkers)) {
+            const ll = entry.marker.getLatLng();
+            if (isInCircle(ll.lat, ll.lng)) inRange++;
+        }
+        document.getElementById('sDrones').textContent = inRange;
+        document.getElementById('sUpdates').textContent = updateCount;
+    }
+
+    // ── Viewport tracking ──
+    async function updateViewport() {
+        const needed = cellsInCircle();
+
+        const toTrack = [];
+        for (const c of needed) if (!trackedCells.has(c)) toTrack.push(c);
+
+        const toUntrack = [];
+        for (const c of trackedCells) if (!needed.has(c)) toUntrack.push(c);
+
+        if (toUntrack.length) {
+            for (const c of toUntrack) {
+                trackedCells.delete(c);
+                delete cellDroneData[c];
+                if (cellRects[c]) { cellRects[c].remove(); delete cellRects[c]; }
+                removeDronesInCell(c);
+            }
+            sub.untrack(toUntrack);
+        }
+
+        if (toTrack.length) {
+            const resp = await fetch('/api/cells?keys=' + toTrack.join(','));
+            const data = await resp.json();
+
+            for (const c of toTrack) {
+                trackedCells.add(c);
+                cellRects[c] = L.rectangle(cellBounds(c), {
+                    color: 'rgba(124, 58, 237, 0.5)',
+                    weight: 1,
+                    fillColor: '#7c3aed',
+                    fillOpacity: 0.06,
+                    interactive: false,
+                }).addTo(map);
+            }
+
+            for (const [c, ds] of Object.entries(data.cells)) {
+                cellDroneData[c] = ds;
+                renderCell(c);
+            }
+
+            sub.track(toTrack.map(k => ({ key: k, version: data.versions[k] || 0 })), data.signature);
+        }
+
+        refreshStats();
+    }
+
+    map.on('moveend', () => {
+        clearTimeout(updatePending);
+        updatePending = setTimeout(updateViewport, 150);
+    });
+
+    sub.subscribe();
+    client.connect();
+    updateViewport();
+    </script>
+</body>
+</html>

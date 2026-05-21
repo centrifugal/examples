@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  centrifugo-1: &centrifugo
+    image: centrifugo/centrifugo:v6.8.0
+    command: centrifugo -c /centrifugo/centrifugo.json
+    volumes:
+      - ./centrifugo.json:/centrifugo/centrifugo.json:ro
+    environment:
+      CENTRIFUGO_NODE_NAME: node-1
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  centrifugo-2:
+    <<: *centrifugo
+    environment:
+      CENTRIFUGO_NODE_NAME: node-2
+    ports:
+      - "8001:8000"
+
+  centrifugo-3:
+    <<: *centrifugo
+    environment:
+      CENTRIFUGO_NODE_NAME: node-3
+    ports:
+      - "8002:8000"
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "9000:80"
+    volumes:
+      - ./static:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - centrifugo-1
+      - centrifugo-2
+      - centrifugo-3

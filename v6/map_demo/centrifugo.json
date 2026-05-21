@@ -1,0 +1,182 @@
+{
+  "admin": {
+    "enabled": true,
+    "insecure": true
+  },
+
+  "client": {
+    "allowed_origins": ["*"],
+    "allow_anonymous_connect_without_token": true,
+    "insecure": true
+  },
+
+  "http_api": {
+    "key": "map-demo-api-key",
+    "external": true
+  },
+
+  "map_broker": {
+    "type": "postgres",
+    "postgres": {
+      "dsn": "postgres://map_demo:map_demo@postgres:5432/map_demo?sslmode=disable",
+      "use_notify": true
+    }
+  },
+
+  "map_brokers": [
+    {
+      "name": "memory_cached",
+      "enabled": true,
+      "type": "memory",
+      "cache": {
+        "enabled": true
+      }
+    }
+  ],
+
+  "proxies": [
+    {
+      "name": "backend",
+      "endpoint": "http://backend:5000/centrifugo/rpc",
+      "timeout": "3s"
+    }
+  ],
+
+  "rpc": {
+    "without_namespace": {
+      "proxy_enabled": true,
+      "proxy_name": "backend"
+    },
+    "namespaces": [
+      {
+        "name": "game",
+        "proxy_enabled": true,
+        "proxy_name": "backend"
+      },
+      {
+        "name": "inventory",
+        "proxy_enabled": true,
+        "proxy_name": "backend"
+      }
+    ]
+  },
+
+  "channel": {
+  "namespaces": [
+    {
+      "name": "cursors",
+      "subscription_type": "map",
+      "map": {
+        "mode": "ephemeral",
+        "key_ttl": "60s",
+        "remove_client_on_unsubscribe": true,
+        "allow_publish_for_subscriber": true,
+        "client_key": "client_id"
+      },
+      "publication_data_format": "json_object",
+      "allow_subscribe_for_client": true,
+      "allow_publish_for_client": true,
+      "client_publish_debounce_interval": "200ms"
+    },
+    {
+      "name": "games",
+      "subscription_type": "map",
+      "map_clients_presence_channel_prefix": "clients:",
+      "map_users_presence_channel_prefix": "users:",
+      "map": {
+        "mode": "recoverable",
+        "key_ttl": "60s"
+      },
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "game",
+      "subscription_type": "map",
+      "map_clients_presence_channel_prefix": "clients:",
+      "map_users_presence_channel_prefix": "users:",
+      "map": {
+        "mode": "recoverable",
+        "key_ttl": "60s"
+      },
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "clients",
+      "subscription_type": "map_clients",
+      "map": {
+        "mode": "recoverable",
+        "key_ttl": "60s"
+      },
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "users",
+      "subscription_type": "map_users",
+      "map": {
+        "mode": "recoverable",
+        "key_ttl": "60s"
+      },
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "tickers",
+      "subscription_type": "map",
+      "map": {
+        "mode": "ephemeral",
+        "key_ttl": "60s",
+        "broker_name": "memory_cached",
+        "full_state_channel_prefix": "fullstate:",
+        "full_state_tick_interval": "50ms"
+      },
+      "allow_tags_filter": true,
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "fullstate",
+      "allowed_delta_types": ["fossil"],
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "inventory",
+      "subscription_type": "map",
+      "map": {
+        "mode": "persistent"
+      },
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "scoreboard",
+      "subscription_type": "map",
+      "map": {
+        "mode": "persistent"
+      },
+      "allowed_delta_types": ["fossil"],
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "poll",
+      "subscription_type": "map",
+      "map": {
+        "mode": "persistent"
+      },
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "board",
+      "subscription_type": "map",
+      "map": {
+        "mode": "persistent"
+      },
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "visualizer",
+      "subscription_type": "map",
+      "map": {
+        "mode": "persistent",
+        "min_page_size": 1
+      },
+      "allow_subscribe_for_client": true
+    }]
+  }
+}

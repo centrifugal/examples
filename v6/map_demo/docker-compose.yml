@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: map_demo
+      POSTGRES_USER: map_demo
+      POSTGRES_PASSWORD: map_demo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U map_demo -d map_demo"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  centrifugo:
+    image: centrifugo/centrifugo:v6.8.0
+    command: centrifugo -c /centrifugo/centrifugo.json
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./centrifugo.json:/centrifugo/centrifugo.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build: ./backend
+    ports:
+      - "3001:5000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - CENTRIFUGO_API_URL=http://centrifugo:8000/api
+      - CENTRIFUGO_API_KEY=map-demo-api-key
+      - DATABASE_URL=postgres://map_demo:map_demo@postgres:5432/map_demo
+    depends_on:
+      postgres:
+        condition: service_healthy
+      centrifugo:
+        condition: service_started
+    command: uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "9000:80"
+    volumes:
+      - ./static:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - centrifugo

@@ -1,0 +1,49 @@
+{
+  "admin": {
+    "enabled": true,
+    "insecure": true
+  },
+  "shared_poll": {
+    "hmac_secret_key": "demo-poll-secret",
+    "notification": {
+      "enabled": true,
+      "type": "redis",
+      "redis": {
+        "address": "redis://redis:6379"
+      },
+      "batch_max_size": 50,
+      "batch_max_delay": "100ms"
+    }
+  },
+  "client": {
+    "allowed_origins": ["*"],
+    "allow_anonymous_connect_without_token": true,
+    "insecure": true
+  },
+  "http_api": {
+    "key": "demo-api-key"
+  },
+  "channel": {
+    "proxy": {
+      "shared_poll_refresh": {
+        "endpoint": "http://backend:3001/centrifugo/refresh",
+        "timeout": "5s"
+      }
+    },
+    "namespaces": [
+      {
+        "name": "post_votes",
+        "subscription_type": "shared_poll",
+        "shared_poll": {
+          "refresh_interval": "10s",
+          "refresh_batch_size": 1000,
+          "mode": "versioned",
+          "max_keys_per_connection": 5000,
+          "keep_latest_data": true
+        },
+        "allowed_delta_types": ["fossil"],
+        "allow_subscribe_for_client": true
+      }
+    ]
+  }
+}
