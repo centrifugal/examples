@@ -7,6 +7,38 @@ services:
       POSTGRES_DB: test
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  centrifugo-1: &centrifugo
+    image: centrifugo/centrifugo:v6.8.0
+    command: centrifugo -c /centrifugo/centrifugo.json
+    volumes:
+      - ./centrifugo.json:/centrifugo/centrifugo.json:ro
+    environment:
+      CENTRIFUGO_NODE_NAME: node-1
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  centrifugo-2:
+    <<: *centrifugo
+    environment:
+      CENTRIFUGO_NODE_NAME: node-2
+    ports:
+      - "8001:8000"
+
+  centrifugo-3:
+    <<: *centrifugo
+    environment:
+      CENTRIFUGO_NODE_NAME: node-3
+    ports:
+      - "8002:8000"
 
   nginx:
     image: nginx:latest
@@ -15,37 +47,7 @@ services:
     volumes:
       - ./static:/usr/share/nginx/html:ro
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-# Until a release is tagged that ships the PG controller, run the 3 Centrifugo
-# nodes locally on the host via ./start-nodes.sh. Once the image is published,
-# uncomment the services below and switch the nginx upstream targets in
-# nginx/default.conf from host.docker.internal:800{0,1,2} to centrifugo-{1,2,3}:8000.
-#
-#  centrifugo-1: &centrifugo
-#    image: centrifugo/centrifugo:vX.Y.Z
-#    command: centrifugo -c /centrifugo/centrifugo.json
-#    volumes:
-#      - ./centrifugo.json:/centrifugo/centrifugo.json:ro
-#    environment:
-#      CENTRIFUGO_NODE_NAME: node-1
-#      CENTRIFUGO_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
-#      CENTRIFUGO_MAP_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
-#      CENTRIFUGO_CONTROLLER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
-#    depends_on:
-#      - postgres
-#  centrifugo-2:
-#    <<: *centrifugo
-#    environment:
-#      CENTRIFUGO_NODE_NAME: node-2
-#      CENTRIFUGO_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
-#      CENTRIFUGO_MAP_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
-#      CENTRIFUGO_CONTROLLER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
-#  centrifugo-3:
-#    <<: *centrifugo
-#    environment:
-#      CENTRIFUGO_NODE_NAME: node-3
-#      CENTRIFUGO_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
-#      CENTRIFUGO_MAP_BROKER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
-#      CENTRIFUGO_CONTROLLER_POSTGRES_DSN: postgres://test:test@postgres:5432/test?sslmode=disable
+    depends_on:
+      - centrifugo-1
+      - centrifugo-2
+      - centrifugo-3

@@ -9,7 +9,7 @@
       "enabled": true,
       "type": "redis",
       "redis": {
-        "address": "redis://localhost:6379"
+        "address": "redis://redis:6379"
       },
       "batch_max_size": 50,
       "batch_max_delay": "100ms"
@@ -26,7 +26,7 @@
   "channel": {
     "proxy": {
       "shared_poll_refresh": {
-        "endpoint": "http://localhost:3001/centrifugo/refresh",
+        "endpoint": "http://backend:3001/centrifugo/refresh",
         "timeout": "5s"
       }
     },

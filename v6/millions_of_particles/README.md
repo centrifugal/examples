@@ -26,30 +26,25 @@ The simulation logic is lifted with minor adaptations from
 
 ## Run
 
-1. Start a local Centrifugo (v6.8.0, needed for `shared_poll`) on port 8000:
-   ```sh
-   centrifugo -c centrifugo.json
-   ```
-2. Start the demo (default `fanout` mode):
-   ```sh
-   docker compose up --build
-   ```
-   Or `shared_poll` mode (full-resolution tiles, pan):
-   ```sh
-   MODE=shared_poll docker compose up --build
-   ```
-3. Open <http://localhost:9000>. Open more tabs to see the multiplayer effect.
+Default `fanout` mode:
+
+```sh
+docker compose up --build
+```
+
+Or `shared_poll` mode (full-resolution tiles, pan):
+
+```sh
+MODE=shared_poll docker compose up --build
+```
+
+Then open <http://localhost:9000>. Open more tabs to see the multiplayer effect.
 
 `--build` is required after backend code changes.
 
 ## Prerequisites
 
-- Centrifugo v6.8.0 on port 8000 (binary, not the docker image — needs
-  `shared_poll` support).
-- Docker Compose for the backend + nginx.
-- centrifuge-js dev build on port 2000 — the viewer loads
-  `http://localhost:2000/centrifuge.protobuf.js` (the unpkg release
-  doesn't yet include `newSharedPollSubscription`).
+- Docker Compose.
 
 ## Tuning
 

@@ -19,7 +19,7 @@
     "enabled": true,
     "type": "postgres",
     "postgres": {
-      "dsn": "postgres://test:test@localhost:5432/test?sslmode=disable",
+      "dsn": "postgres://test:test@postgres:5432/test?sslmode=disable",
       "use_notify": true
     }
   },
@@ -27,7 +27,7 @@
   "map_broker": {
     "type": "postgres",
     "postgres": {
-      "dsn": "postgres://test:test@localhost:5432/test?sslmode=disable",
+      "dsn": "postgres://test:test@postgres:5432/test?sslmode=disable",
       "use_notify": true
     }
   },
@@ -36,7 +36,7 @@
     "enabled": true,
     "type": "postgres",
     "postgres": {
-      "dsn": "postgres://test:test@localhost:5432/test?sslmode=disable",
+      "dsn": "postgres://test:test@postgres:5432/test?sslmode=disable",
       "use_notify": true
     }
   },

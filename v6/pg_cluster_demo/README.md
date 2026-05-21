@@ -14,9 +14,8 @@ Companion to the blog post
 ## Layout
 
 - `centrifugo.json` — single shared config used by all 3 nodes.
-- `start-nodes.sh` — convenience launcher that starts 3 local nodes on ports 8000/8001/8002,
-  each with its own `CENTRIFUGO_NODE_NAME`. Logs are tee'd to `node-N.log`.
-- `docker-compose.yml` — PostgreSQL + nginx (load balancer + static server).
+- `docker-compose.yml` — PostgreSQL + 3 Centrifugo nodes + nginx (load balancer + static server).
+  Nodes are exposed on the host at ports 8000/8001/8002.
 - `nginx/default.conf` — exposes one `/connection/n{1,2,3}/...` per Centrifugo node so a
   browser tab can pick which node to talk to via `?n=1|2|3`. Also proxies `/api/info`
   with the API key injected.
@@ -25,29 +24,20 @@ Companion to the blog post
 ## Run
 
 ```bash
-# 1. Bring up PostgreSQL and the static server.
-docker compose up -d
+docker compose up
+```
 
-# 2. Start 3 local Centrifugo nodes (in another terminal).
-bash start-nodes.sh
-# (or: chmod +x start-nodes.sh && ./start-nodes.sh)
+Then open the demo:
 
-# 3. Open the demo.
+```bash
 open http://localhost:9000/?n=1
 open http://localhost:9000/?n=2
 open http://localhost:9000/?n=3
 ```
 
-> The future plan is to bake the 3 Centrifugo containers into `docker-compose.yml`
-> directly once the release tag exists. For now `start-nodes.sh` runs them locally
-> against the host PostgreSQL exposed on `localhost:5432`.
-
 ## Prerequisites
 
-- Centrifugo v6.8.0 (introduced the PG controller, `controller_postgres.go`).
 - Docker Compose.
-- `centrifuge-js` dev build serving on `http://localhost:2000/centrifuge.js`
-  (matches the convention used by the other v6 demos).
 
 ## What each panel proves
 

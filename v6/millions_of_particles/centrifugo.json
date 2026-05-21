@@ -17,7 +17,7 @@
   "proxies": [
     {
       "name": "backend",
-      "endpoint": "http://localhost:3001/centrifugo/rpc",
+      "endpoint": "http://backend:3001/centrifugo/rpc",
       "timeout": "3s"
     }
   ],
@@ -32,7 +32,7 @@
   "channel": {
     "proxy": {
       "shared_poll_refresh": {
-        "endpoint": "http://localhost:3001/centrifugo/refresh",
+        "endpoint": "http://backend:3001/centrifugo/refresh",
         "timeout": "5s"
       }
     },

@@ -17,7 +17,7 @@
   "channel": {
     "proxy": {
       "shared_poll_refresh": {
-        "endpoint": "http://localhost:3001/centrifugo/refresh",
+        "endpoint": "http://backend:3001/centrifugo/refresh",
         "timeout": "5s"
       }
     },

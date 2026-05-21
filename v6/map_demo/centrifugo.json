@@ -18,7 +18,7 @@
   "map_broker": {
     "type": "postgres",
     "postgres": {
-      "dsn": "postgres://map_demo:map_demo@localhost:5432/map_demo?sslmode=disable",
+      "dsn": "postgres://map_demo:map_demo@postgres:5432/map_demo?sslmode=disable",
       "use_notify": true
     }
   },
@@ -37,7 +37,7 @@
   "proxies": [
     {
       "name": "backend",
-      "endpoint": "http://localhost:3001/centrifugo/rpc",
+      "endpoint": "http://backend:5000/centrifugo/rpc",
       "timeout": "3s"
     }
   ],
