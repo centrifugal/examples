@@ -1,6 +1,6 @@
 # Map Demo
 
-Demonstrates Centrifugo map subscriptions with 9 interactive examples.
+Demonstrates Centrifugo map subscriptions with 8 interactive examples.
 
 ## Run
 

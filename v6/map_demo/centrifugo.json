@@ -64,21 +64,6 @@
   "channel": {
   "namespaces": [
     {
-      "name": "cursors",
-      "subscription_type": "map",
-      "map": {
-        "mode": "ephemeral",
-        "key_ttl": "60s",
-        "remove_client_on_unsubscribe": true,
-        "allow_publish_for_subscriber": true,
-        "client_key": "client_id"
-      },
-      "publication_data_format": "json_object",
-      "allow_subscribe_for_client": true,
-      "allow_publish_for_client": true,
-      "client_publish_debounce_interval": "200ms"
-    },
-    {
       "name": "games",
       "subscription_type": "map",
       "map_clients_presence_channel_prefix": "clients:",

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ephemeral Cursors - Map Subscriptions Demo</title>
+    <title>Map Cursors — Centrifugo</title>
     <style>
         * {
             box-sizing: border-box;
@@ -99,18 +99,6 @@
             font-size: 14px;
             color: #888;
         }
-        .back-link {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            color: #888;
-            text-decoration: none;
-            font-size: 14px;
-            z-index: 2000;
-        }
-        .back-link:hover {
-            color: white;
-        }
         .instruction {
             position: fixed;
             bottom: 50%;
@@ -127,7 +115,7 @@
     <div id="canvas"></div>
 
     <div class="info-panel">
-        <h1>Ephemeral Cursors</h1>
+        <h1>Map Cursors</h1>
         <p>Move your mouse around. Other users will see your cursor in real-time!</p>
         <div class="status">
             <div class="status-dot" id="statusDot"></div>
@@ -137,8 +125,6 @@
     </div>
 
     <div class="instruction">Move your mouse around</div>
-
-    <a href="/" class="back-link">← Back to demos</a>
 
     <script src="https://unpkg.com/centrifuge@5.6.0/dist/centrifuge.js"></script>
     <script>
