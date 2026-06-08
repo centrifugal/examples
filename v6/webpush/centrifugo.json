@@ -1,0 +1,37 @@
+{
+  "log": {
+    "level": "debug"
+  },
+
+  "admin": {
+    "enabled": true,
+    "insecure": true
+  },
+
+  "http_api": {
+    "key": "webpush-demo-api-key",
+    "external": true
+  },
+
+  "database": {
+    "enabled": true,
+    "postgresql": {
+      "dsn": "postgresql://test:test@postgres:5432/test"
+    }
+  },
+
+  "push_notifications": {
+    "enabled": true,
+    "enabled_providers": ["webpush"],
+    "queue": {
+      "redis": {
+        "address": "redis:6379"
+      }
+    },
+    "webpush": {
+      "vapid_public_key": "SET_YOUR_PUBLIC_KEY",
+      "vapid_private_key": "SET_YOUR_PRIVATE_KEY",
+      "subject": "mailto:you@example.com"
+    }
+  }
+}

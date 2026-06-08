@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Centrifugo PRO — Native Web Push demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    button { padding: 8px 14px; font-size: 14px; cursor: pointer; margin-right: 8px; }
+    input { padding: 6px 8px; font-size: 14px; }
+    #log { margin-top: 20px; padding: 12px; background: #f4f4f4; border-radius: 6px; white-space: pre-wrap; font-family: monospace; font-size: 13px; min-height: 80px; }
+    .row { margin: 12px 0; }
+  </style>
+</head>
+<body>
+  <h1>Centrifugo PRO — Native Web Push</h1>
+  <p>A minimal demo of registering a browser for native Web Push (VAPID) and receiving a push via Centrifugo PRO.</p>
+
+  <div class="row">
+    <label>User ID: <input id="user" value="demo-user" /></label>
+  </div>
+  <div class="row">
+    <button id="enable">1. Enable notifications</button>
+  </div>
+  <div class="row">
+    <label>Title: <input id="title" value="Hello" /></label>
+  </div>
+  <div class="row">
+    <label>Body: <input id="body" value="This is a native Web Push" /></label>
+    <button id="send">2. Send test push</button>
+  </div>
+
+  <div id="log"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
