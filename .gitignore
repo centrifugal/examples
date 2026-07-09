@@ -1,4 +1,6 @@
 run.sh
+# ...but the proxy load-balancing example ships a runnable run.sh entry point.
+!v6/proxy_load_balancing/run.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
