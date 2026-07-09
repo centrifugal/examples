@@ -1,0 +1,11 @@
+{
+  "name": "proxy-lb-tester",
+  "private": true,
+  "type": "module",
+  "description": "centrifuge-js end-to-end conformance tester for Centrifugo behind L7 proxies",
+  "dependencies": {
+    "centrifuge": "5.7.0",
+    "eventsource": "^3.0.5",
+    "ws": "^8.18.0"
+  }
+}

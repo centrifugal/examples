@@ -1,0 +1,24 @@
+{
+	# Demo harness: no admin API, and we supply our own cert (no ACME).
+	admin off
+	auto_https off
+}
+
+# HTTP / ws
+:8080 {
+	reverse_proxy centrifugo-1:8000 centrifugo-2:8000 {
+		lb_policy round_robin
+		# Flush every write immediately so SSE / HTTP-streaming pushes are not
+		# buffered. Caddy handles WebSocket upgrades transparently.
+		flush_interval -1
+	}
+}
+
+# HTTPS / wss
+:8443 {
+	tls /certs/server.crt /certs/server.key
+	reverse_proxy centrifugo-1:8000 centrifugo-2:8000 {
+		lb_policy round_robin
+		flush_interval -1
+	}
+}

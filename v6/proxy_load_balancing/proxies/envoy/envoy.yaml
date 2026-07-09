@@ -1,0 +1,65 @@
+# Envoy L7 config: HTTP on 8080, HTTPS on 8443, round-robin over the two
+# Centrifugo nodes. WebSocket upgrades enabled; per-route timeout disabled so
+# long-lived streams (SSE / HTTP-streaming / WebSocket) are never cut.
+static_resources:
+  listeners:
+    - name: listener_http
+      address: { socket_address: { address: 0.0.0.0, port_value: 8080 } }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                stream_idle_timeout: 0s
+                upgrade_configs:
+                  - upgrade_type: websocket
+                route_config: &routes
+                  name: local_route
+                  virtual_hosts:
+                    - name: centrifugo
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: "/" }
+                          route:
+                            cluster: centrifugo
+                            # Disable the default 15s route timeout for streaming.
+                            timeout: 0s
+                http_filters: &filters
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+    - name: listener_https
+      address: { socket_address: { address: 0.0.0.0, port_value: 8443 } }
+      filter_chains:
+        - transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              common_tls_context:
+                tls_certificates:
+                  - certificate_chain: { filename: /certs/server.crt }
+                    private_key: { filename: /certs/server.key }
+          filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_https
+                stream_idle_timeout: 0s
+                upgrade_configs:
+                  - upgrade_type: websocket
+                route_config: *routes
+                http_filters: *filters
+
+  clusters:
+    - name: centrifugo
+      connect_timeout: 5s
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: centrifugo
+        endpoints:
+          - lb_endpoints:
+              - endpoint: { address: { socket_address: { address: centrifugo-1, port_value: 8000 } } }
+              - endpoint: { address: { socket_address: { address: centrifugo-2, port_value: 8000 } } }

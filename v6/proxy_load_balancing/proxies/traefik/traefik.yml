@@ -1,0 +1,18 @@
+# Traefik static config.
+entryPoints:
+  web:
+    address: ":8080"
+  websecure:
+    address: ":8443"
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+log:
+  level: INFO
+
+# Disable the dashboard/api and telemetry for a clean demo.
+api:
+  dashboard: false

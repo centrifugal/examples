@@ -1,0 +1,50 @@
+{
+  "client": {
+    "allowed_origins": ["*"],
+    "allow_anonymous_connect_without_token": true,
+    "insecure": true,
+    "ping_interval": "3s",
+    "pong_timeout": "2s"
+  },
+
+  "http_api": {
+    "key": "proxy-lb-demo-api-key"
+  },
+
+  "health": {
+    "enabled": true
+  },
+
+  "engine": {
+    "type": "redis",
+    "redis": {
+      "address": "redis://redis:6379"
+    }
+  },
+
+  "websocket": {
+    "compression": true
+  },
+
+  "http_stream": {
+    "enabled": true
+  },
+
+  "sse": {
+    "enabled": true
+  },
+
+  "channel": {
+    "namespaces": [
+      {
+        "name": "test",
+        "allow_subscribe_for_anonymous": true,
+        "allow_publish_for_anonymous": true,
+        "allow_history_for_anonymous": true,
+        "allow_presence_for_anonymous": true,
+        "history_size": 100,
+        "history_ttl": "60s"
+      }
+    ]
+  }
+}

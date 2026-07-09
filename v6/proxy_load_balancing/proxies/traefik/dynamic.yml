@@ -1,0 +1,29 @@
+# Traefik dynamic config: routers, service (round-robin over 2 nodes), TLS cert.
+tls:
+  certificates:
+    - certFile: /certs/server.crt
+      keyFile: /certs/server.key
+
+http:
+  routers:
+    centrifugo-web:
+      rule: "PathPrefix(`/`)"
+      entryPoints: ["web"]
+      service: centrifugo
+    centrifugo-websecure:
+      rule: "PathPrefix(`/`)"
+      entryPoints: ["websecure"]
+      service: centrifugo
+      tls: {}
+
+  services:
+    centrifugo:
+      loadBalancer:
+        # flushInterval controls how often streamed bytes are flushed downstream;
+        # small value keeps SSE / HTTP-streaming low-latency. Traefik also handles
+        # WebSocket upgrades transparently.
+        responseForwarding:
+          flushInterval: "10ms"
+        servers:
+          - url: "http://centrifugo-1:8000"
+          - url: "http://centrifugo-2:8000"

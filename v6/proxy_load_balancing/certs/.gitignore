@@ -1,0 +1,4 @@
+# Generated at runtime by the certgen service; never commit keys/certs.
+*
+!.gitignore
+!gen-certs.sh
