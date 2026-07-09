@@ -79,6 +79,23 @@ docker compose run --rm -e MODE=idle -e PROXY=nginx tester   # 65s idle probe
 
 Tune with `-e IDLE_HOLD_MS=120000`, `-e FANOUT_CONNS=20`, `-e FANOUT_MSGS=10`.
 
+### Load / connection-scaling test (10k+)
+
+Opt-in (not part of `run.sh` — it's heavy). Ramps up many connections through a
+proxy, holds them all, confirms they spread across both nodes, then broadcasts
+and requires every connection to receive every message. Every proxy here is
+verified holding **10,000** connections:
+
+```bash
+docker compose --profile nginx up -d --wait --no-deps --force-recreate nginx
+docker compose run --rm -e MODE=load -e LOAD_CONNS=10000 -e PROXY=nginx tester
+```
+
+Tune with `-e LOAD_CONNS=20000`, `-e LOAD_MSGS=5`, `-e LOAD_TRANSPORT=http_stream`.
+The connection-scaling knobs live in `docker-compose.yml` (`ulimits`) and the
+proxy configs — see the "Scaling to many connections" section of the
+[load balancing docs](https://centrifugal.dev/docs/server/load_balancing).
+
 ## The proxy configs
 
 Each is deliberately small — the four things that matter are commented inline:

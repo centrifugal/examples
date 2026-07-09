@@ -8,6 +8,15 @@
 #
 # Everything runs in docker compose. See run.sh for the orchestrated matrix.
 
+# High open-file limit so every container can hold many thousands of connections
+# (each proxied connection costs 2 fds at the proxy: client + upstream). Applied
+# to Centrifugo, the proxies and the load generator. See the "Scaling" note in
+# the README and docs/server/load_balancing.md.
+x-ulimits: &big-ulimits
+  nofile:
+    soft: 1048576
+    hard: 1048576
+
 services:
   redis:
     image: redis:7-alpine
@@ -29,6 +38,7 @@ services:
   centrifugo-1: &centrifugo
     image: centrifugo/centrifugo:v6.8.1
     command: centrifugo -c /centrifugo/centrifugo.json
+    ulimits: *big-ulimits
     volumes:
       - ./centrifugo.json:/centrifugo/centrifugo.json:ro
     environment:
@@ -52,10 +62,12 @@ services:
   nginx:
     image: nginx:1.27-alpine
     profiles: ["nginx"]
+    ulimits: *big-ulimits
     networks:
       default:
         aliases: ["proxy"]
     volumes:
+      - ./proxies/nginx/nginx-main.conf:/etc/nginx/nginx.conf:ro
       - ./proxies/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certs:/certs:ro
     ports:
@@ -72,6 +84,7 @@ services:
   haproxy:
     image: haproxy:2.9-alpine
     profiles: ["haproxy"]
+    ulimits: *big-ulimits
     networks:
       default:
         aliases: ["proxy"]
@@ -92,6 +105,7 @@ services:
   envoy:
     image: envoyproxy/envoy:v1.31-latest
     profiles: ["envoy"]
+    ulimits: *big-ulimits
     networks:
       default:
         aliases: ["proxy"]
@@ -112,6 +126,7 @@ services:
   traefik:
     image: traefik:v3.1
     profiles: ["traefik"]
+    ulimits: *big-ulimits
     networks:
       default:
         aliases: ["proxy"]
@@ -133,6 +148,7 @@ services:
   caddy:
     image: caddy:2.8-alpine
     profiles: ["caddy"]
+    ulimits: *big-ulimits
     networks:
       default:
         aliases: ["proxy"]
@@ -154,7 +170,10 @@ services:
   tester:
     build: ./tester
     profiles: ["tester"]
+    ulimits: *big-ulimits
     environment:
+      # Bigger V8 heap so the load generator can hold many thousands of clients.
+      NODE_OPTIONS: "--max-old-space-size=4096"
       PROXY_HOST: proxy
       HTTP_PORT: "8080"
       HTTPS_PORT: "8443"

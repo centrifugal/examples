@@ -2,6 +2,10 @@
 	# Demo harness: no admin API, and we supply our own cert (no ACME).
 	admin off
 	auto_https off
+	# Scaling: Caddy (Go) does not cap connections by default - it is bounded by
+	# the container nofile ulimit (set in docker-compose.yml). Caddy logs a
+	# warning if the fd limit is too low but does not raise it; set it high in
+	# docker-compose.yml to hold 10k+ connections.
 }
 
 # HTTP / ws

@@ -1,4 +1,7 @@
 # Traefik static config.
+# Scaling: Traefik (Go) does not cap connections by default - it is bounded by
+# open file descriptors, so the high nofile ulimit in docker-compose.yml is what
+# lets it hold 10k+ connections.
 entryPoints:
   web:
     address: ":8080"

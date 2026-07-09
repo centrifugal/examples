@@ -40,8 +40,8 @@ for p in "${PROXIES[@]}"; do
   echo ""
   echo "########## proxy: $p ##########"
   # --no-deps: certs are already generated and Centrifugo is already up, so start
-  # only the proxy. This avoids a --wait race with the one-shot certgen dependency.
-  if ! dc --profile "$p" up -d --wait --no-deps "$p"; then
+  # only the proxy. --force-recreate so an edited proxy config is always picked up.
+  if ! dc --profile "$p" up -d --wait --no-deps --force-recreate "$p"; then
     echo "  proxy $p failed to start"
     FAILS+=("$p:startup")
     dc --profile "$p" logs "$p" | tail -20 || true

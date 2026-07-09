@@ -344,6 +344,95 @@ async function runFanout() {
   }
 }
 
+// Load / connection-scaling test: ramp up LOAD_CONNS connections through the
+// proxy, hold them all, then broadcast and require every one to receive every
+// message. Proves the proxy (and Centrifugo, and the OS fd limits) can carry the
+// target connection count. Opt-in - not part of the default run because a large
+// count is heavy on a laptop.
+async function runLoad() {
+  const N = parseInt(process.env.LOAD_CONNS || '10000', 10);
+  const M = parseInt(process.env.LOAD_MSGS || '3', 10);
+  const BATCH = parseInt(process.env.LOAD_BATCH || '250', 10);
+  const BATCH_DELAY = parseInt(process.env.LOAD_BATCH_DELAY_MS || '100', 10);
+  const transport = process.env.LOAD_TRANSPORT || 'websocket';
+  const channel = `test:load-${uniq()}`;
+  const tokens = Array.from({ length: M }, (_, i) => `load-${uniq()}-${i}`);
+  const wanted = new Set(tokens);
+
+  console.log(`  ramping ${N} ${transport} connections through the proxy (batch ${BATCH})...`);
+  const conns = [];
+  let connectedCount = 0;
+
+  const makeConn = () => {
+    const { endpoints, emulationEndpoint } = endpointsFor(transport, 'http');
+    const c = new Centrifuge(endpoints, { ...commonOpts(), emulationEndpoint, minReconnectDelay: 500, maxReconnectDelay: 5000 });
+    const st = { c, got: new Set(), connected: false, subscribed: false };
+    c.on('connected', () => { if (!st.connected) { st.connected = true; connectedCount++; } });
+    c.on('disconnected', () => { if (st.connected) { st.connected = false; connectedCount--; } });
+    const sub = c.newSubscription(channel);
+    sub.on('subscribed', () => { st.subscribed = true; });
+    sub.on('publication', (ctx) => {
+      const t = ctx.data && ctx.data.token;
+      if (t && wanted.has(t)) st.got.add(t);
+    });
+    st.sub = sub;
+    sub.subscribe();
+    c.connect();
+    conns.push(st);
+  };
+
+  try {
+    for (let i = 0; i < N; i += BATCH) {
+      const n = Math.min(BATCH, N - i);
+      for (let j = 0; j < n; j++) makeConn();
+      await sleep(BATCH_DELAY);
+      if (((i / BATCH) | 0) % 8 === 0) {
+        console.log(`  ... opened ${Math.min(i + n, N)}/${N}, connected ${connectedCount}`);
+      }
+    }
+
+    // Wait for everything to settle (all connected + subscribed).
+    const settleDeadline = Date.now() + Math.max(60000, N * 8);
+    while (Date.now() < settleDeadline) {
+      const subd = conns.filter((x) => x.subscribed).length;
+      if (connectedCount >= N && subd >= N) break;
+      await sleep(500);
+    }
+    const subscribedCount = conns.filter((x) => x.subscribed).length;
+    console.log(`  peak held: connected ${connectedCount}/${N}, subscribed ${subscribedCount}/${N}`);
+
+    // Distribution across nodes. /api/info per-node num_clients refreshes on the
+    // node-ping interval, so poll until the reported total catches up to the held
+    // count (otherwise the printed split sums to less than what we actually hold).
+    let dist = '';
+    let total = 0;
+    const distDeadline = Date.now() + 30000;
+    while (Date.now() < distDeadline) {
+      const nodes = await apiInfo();
+      total = nodes.reduce((s, nn) => s + (nn.num_clients || 0), 0);
+      dist = nodes.map((nn) => `${nn.name}:${nn.num_clients || 0}`).sort().join('  ');
+      if (nodes.filter((nn) => (nn.num_clients || 0) > 0).length >= 2 && total >= connectedCount) break;
+      await sleep(1000);
+    }
+    console.log(`  node distribution (via /api/info): ${dist} (total ${total})`);
+
+    // Broadcast M messages; require every connection to receive every one.
+    for (const t of tokens) await apiPublish(channel, { token: t });
+    const delivDeadline = Date.now() + Math.max(20000, N);
+    while (Date.now() < delivDeadline) {
+      if (conns.every((x) => x.got.size === M)) break;
+      await sleep(500);
+    }
+    const fullyDelivered = conns.filter((x) => x.got.size === M).length;
+    console.log(`  delivery: ${fullyDelivered}/${conns.length} connections received all ${M} messages`);
+
+    const ok = connectedCount >= N && fullyDelivered === conns.length;
+    return [{ label: `load (${N} conns, ${M} msgs)`, ok, err: ok ? undefined : `held ${connectedCount}/${N}, delivered ${fullyDelivered}/${conns.length}` }];
+  } finally {
+    conns.forEach((x) => { try { x.c.disconnect(); } catch { /* ignore */ } });
+  }
+}
+
 async function main() {
   console.log(`\n=== tester: mode=${MODE} proxy=${PROXY} ===`);
   await waitReady();
@@ -351,6 +440,7 @@ async function main() {
   if (MODE === 'crossnode') results = await runCrossNode();
   else if (MODE === 'idle') results = await runIdle();
   else if (MODE === 'fanout') results = await runFanout();
+  else if (MODE === 'load') results = await runLoad();
   else results = await runMatrix();
   const failed = results.filter((r) => !r.ok);
   console.log(`\n=== ${MODE} ${PROXY}: ${results.length - failed.length}/${results.length} passed ===\n`);
